@@ -27,6 +27,9 @@ test('reconciles every source row and exports the files', async ({ page }) => {
 });
 
 test('has no serious accessibility violations on source and legal pages', async ({ page }) => {
+  const browserErrors: string[] = [];
+  page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()); });
+  page.on('pageerror', (error) => browserErrors.push(error.message));
   for (const path of ['/', '/privacy/', '/terms/']) {
     await page.goto(path);
     await page.waitForTimeout(500);
@@ -37,6 +40,7 @@ test('has no serious accessibility violations on source and legal pages', async 
     await expect(page.locator('main')).toHaveCount(1);
     await expect(page.locator('h1')).toHaveCount(1);
   }
+  expect(browserErrors).toEqual([]);
 });
 
 test('keeps the installed workspace available offline', async ({ page, context }) => {
