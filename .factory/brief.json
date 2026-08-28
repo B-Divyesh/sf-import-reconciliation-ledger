@@ -1,0 +1,30 @@
+{
+  "slug": "import-reconciliation-ledger",
+  "title": "Import Reconciliation Ledger",
+  "territory": "utilities",
+  "user": "Operations and finance admins loading CSV/template data into business systems who need to prove what transformed, matched, skipped, and changed before committing an import.",
+  "evidence": [
+    {
+      "url": "https://hn.algolia.com/api/v1/items/43986417",
+      "date": "2025-05-14",
+      "quote_or_summary": "An Ask HN user asks how people clean and transform data before Salesforce, Workday, NetSuite, and other template-based imports; 18 comments."
+    },
+    {
+      "url": "https://github.com/actualbudget/actual/issues/8464",
+      "date": "2026-07-11",
+      "quote_or_summary": "A CSV import can silently merge a genuinely new transaction with an existing same-amount transaction even though preview shows it as new."
+    }
+  ],
+  "recurrence": "Import preparation is an active cross-system concern, while a concrete silent-merge defect shows previews alone are not an adequate audit trail.",
+  "current_workaround": "Clean sheets with formulas/scripts, trust an import preview, take screenshots, and manually compare totals afterward.",
+  "incumbents_and_gap": "Excel/Sheets, OpenRefine, ETL platforms, and each SaaS import wizard transform data; lightweight local tools rarely create a persistent row-level reconciliation ledger that non-engineers can review.",
+  "smallest_useful_product": "Offline web app that maps CSV columns, applies visible transforms, computes before/after totals and stable row fingerprints, records match/skip/create decisions, and exports both destination CSV and an immutable review report. Non-goals: direct SaaS writes, cloud ETL, or autonomous field guessing.",
+  "success_measure": "In pilot imports, admins can account for 100% of source rows and identify every seeded silent merge or dropped row before upload.",
+  "artifact_class": "pwa-offline",
+  "monetization": "one-time — local, auditable prep work suits project-based data migration and avoids exposing business data.",
+  "constraints": "Never upload spreadsheets; use deterministic transforms; protect PII in saved projects; do not claim accounting correctness; support a limited documented CSV scope first.",
+  "est_build_effort": "M",
+  "why_distinct": "The core artifact is a human-reviewable reconciliation ledger, not another generic spreadsheet cleaner or AI mapper.",
+  "confidence": 5,
+  "state": "RESEARCHED"
+}

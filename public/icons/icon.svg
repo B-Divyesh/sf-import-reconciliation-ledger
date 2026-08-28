@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Folded ledger page with a proofing check">
+  <rect width="512" height="512" fill="#f2efe7"/>
+  <path d="M116 68h206l74 74v302H116z" fill="#fbfaf6" stroke="#171714" stroke-width="22"/>
+  <path d="M322 68v76h74" fill="none" stroke="#171714" stroke-width="22"/>
+  <path d="M158 192h196M158 248h124M158 304h78" stroke="#171714" stroke-width="18"/>
+  <path d="m246 345 44 42 90-112" fill="none" stroke="#a32a1e" stroke-width="28" stroke-linecap="square"/>
+</svg>
