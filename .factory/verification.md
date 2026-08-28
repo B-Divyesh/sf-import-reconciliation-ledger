@@ -1,152 +1,105 @@
-# Independent verification — candidate `8c271f50f7372accf7a5eae3ede1b728c77da45a`
+# Independent verification — FAIL
 
-**Verdict: FAIL** — verified 2026-08-28 against
-<https://import-reconciliation-ledger.sociobot.in>.
+**Work order:** `import-reconciliation-ledger-verify-1`  
+**Candidate:** `8c271f50f7372accf7a5eae3ede1b728c77da45a` (`8c271f5`)  
+**Live URL:** <https://import-reconciliation-ledger.sociobot.in>  
+**Verified:** 2026-08-28, from a clean clone, Node/npm install performed with `npm ci`.
 
-This was a clean-clone verification. Product source was not changed; this report
-and the handoff are the only repository changes.
+## Release decision
 
-## Release blockers and defects
+**FAIL — do not release this candidate.** The required claims contract is absent, the first screen does not state the intended user in plain words, and mobile Lighthouse performance is below the required threshold. The product’s core local workflow and live deployment otherwise tested well; details below distinguish release blockers from passing evidence.
 
-### Critical — required claims contract is absent
+## Release-blocking defects
 
-`.factory/claims.json` does not exist in the candidate. The work order requires
-running *every* test in that file through the demo entry point before anything
-else, and explicitly makes a missing file release-blocking. Consequently there
-were no claim tests to execute and the required claims evidence is absent.
+### P0 — required claims contract is absent
 
-### Medium — 390px touch targets do not meet the 44px contract
+`.factory/claims.json` does not exist at the candidate commit. The work order explicitly makes a missing file a release-blocking finding and requires its tests to run before all other checks. Consequently there was no claim list or claim test command to execute from the demo entry point.
 
-On the cold live page at 390×844, the footer `Privacy`, `Terms`, and `Source
-code` links measured 20px, 20px, and 20px high respectively. The utility
-`Privacy` link measured 19px high. These are interactive targets and violate
-the 44×44px requirement in the acceptance/accessibility contract.
+### P0 — first-read acceptance fails for the specified audience
 
-### Medium — deployed hashed assets are not immutable cached
+Fresh cold read of the live screen:
 
-The live hashed JS and CSS assets both return:
+> “Import Reconciliation Ledger”; “Account for every row”; “No uploads. No guessing.”; “Bring the rows to the desk.”; “Choose a UTF-8, comma-delimited CSV. It is read inside this browser and never sent to us.”
 
-```
-cache-control: public, must-revalidate, max-age=30
-```
+It conveys a private CSV tool and offers a clear one-click `Load five-row sample` trial, which works. It does **not** say who it is for (the brief’s operations and finance admins) in plain words, and does not plainly explain the match/skip/transform/reconciliation outcome on that first screen. This fails the work order’s mandatory first-read criterion even though the later workflow is coherent.
 
-The PWA/performance contract requires long-lived immutable caching for hashed
-assets. The same 30-second policy is used for the service worker, manifest,
-HTML, and offline page. This is a deployment configuration issue, not a source
-hash mismatch.
+### P1 — mobile Lighthouse performance gate fails
 
-### Low — keyboard focus is lost after loading the sample
+Fresh live mobile Lighthouse 13.4.1 run, using the installed Chromium with `--headless --no-sandbox --disable-dev-shm-usage`:
 
-Using Tab then Enter to activate **Load five-row sample** worked on desktop and
-390px mobile, but the source-stage re-render left `document.activeElement` on
-`body` (0px outline). The user must tab from the beginning again instead of
-continuing at the newly revealed preview/action. The dynamic update should
-retain or deliberately move focus.
+| Category | Score |
+| --- | ---: |
+| Performance | **83** |
+| Accessibility | 100 |
+| Best practices | 100 |
+| SEO | 100 |
 
-### Low — update toast cannot be a durable user-controlled update prompt
+LCP was 1,571 ms and CLS 0, but total blocking time was **656 ms** (main-thread work 2.3 s; max potential FID 279 ms). The product contract requires mobile Lighthouse performance of at least 90 and INP below 200 ms. This conflicts with the previous handoff’s reported 99 performance / 0 ms TBT.
 
-`public/sw.js` calls `self.skipWaiting()` during every install, while the app
-offers an “Update” action only for `registration.waiting`. An updated worker
-therefore activates immediately and `controllerchange` reloads the page. The
-specified in-app “update available” toast cannot remain available for a user
-to choose an update. Live worker registration/offline behavior works; this is
-the update-flow defect.
+## Other defects
 
-## Required first-read test
+### P2 — immutable hashed assets are not served with immutable caching
 
-Cold live page result: **pass**. The first screen says it is an “Import
-Reconciliation Ledger,” says “Choose a UTF-8, comma-delimited CSV” and “It is
-read inside this browser and never sent to us,” and identifies the work as
-accounting for every row before import. It provides the plainly labelled,
-one-click **Load five-row sample** control. There were no console or page
-errors and no failed page requests on this cold load.
+`/assets/app-CQ0i2A-A.js`, `/assets/app-BMSTd4Jq.css`, and `/sw.js` all return `Cache-Control: public, must-revalidate, max-age=30`. The asset names are content-hashed but are not granted long-lived immutable HTTP caching, contrary to the PWA/performance caching requirement. The service worker does cache them after installation, but cold/repeat online loading unnecessarily revalidates them every 30 seconds.
 
-## Local quality gates
+### P2 — browser hardening headers and manifest media type are incomplete
 
-Executed from the clean candidate:
+The live responses have HSTS, `Referrer-Policy`, and `X-Content-Type-Options`, but no `Content-Security-Policy` or `Permissions-Policy`. `/manifest.webmanifest` is served as `application/octet-stream`, rather than a manifest JSON media type. These did not cause a visible runtime failure in Chromium, but are deployment-quality gaps for a local PII-handling PWA.
+
+### P2 — legal footer touch targets are too small at 390 px
+
+Fresh live mobile measurement found the footer `Privacy`, `Terms`, and `Source code` links to be 20.14 CSS px high (their widths were 54.8, 39.1, and 86.1 px). They are interactive controls but do not satisfy the 44×44 px touch-target requirement.
+
+### P2 — default parallel browser test run is flaky
+
+`npm run test:e2e` with the repository’s normal two workers produced **5 passed, 1 failed**: mobile `has no serious accessibility violations on source and legal pages` failed at `page.addScriptTag` with `Execution context was destroyed, most likely because of a navigation`. A serialized `npm test -- --workers=1` run passed all 6 Vitest and all 6 Playwright tests, and independent axe checks were clean. This is a test-race defect rather than evidence of an axe violation, but it means the default quality command is not reliably green.
+
+### P3 — dynamic sample load loses keyboard focus; update prompt cannot be user-controlled
+
+Tabbing to `Load five-row sample` and activating it with Enter correctly loads the data, but the source-stage re-render leaves `document.activeElement` on `body`. Focus should be retained or moved deliberately to the new source proof/action. Separately, the service worker calls `skipWaiting()` in every install while the app only exposes its Update action for `registration.waiting`; a new worker therefore cannot remain waiting for a user-controlled update choice.
+
+## Passing evidence
+
+### Build, deployment identity, and budget
+
+- `npm ci` completed with 0 vulnerabilities reported by npm.
+- `npm run build` passed (`tsc --noEmit && vite build`) and created `dist/`.
+- Built initial JS: 36,482 bytes (12,370 gzip); CSS: 11,405 bytes (3,290 gzip); hero WebP: 53,976 bytes; no downloaded fonts. These are inside the 200 KB JS, 50 KB CSS, and 300 KB hero budgets.
+- The built and live `index.html`, JS, CSS, service worker, manifest, offline page, legal pages, hero image, and all four icons were SHA-256-identical. The live deployment is this candidate, not a stale or divergent deployment.
+
+### End-to-end reconciliation and recovery
+
+On a fresh production build I used the one-click five-row sample, trimmed `Customer`, selected `Account ID` as the match key and `Amount` as the control total, then loaded an existing-records CSV containing only `AC-101`.
+
+- The ledger recorded, respectively: `match` for `AC-101`; `skip` / duplicate for both `AC-102` rows; `skip` / blank key for the missing-key row; and `create` for `AC-104`.
+- The displayed totals were 5 source, 1 create, 1 match, 3 skip. The warning explicitly identified two duplicate source-key rows.
+- The destination CSV contained only `AC-101` and `AC-104`; the checksum-named HTML review report contained all five rows, decisions, fingerprints, and skip evidence.
+- A malformed unterminated quoted CSV was rejected with “A quoted field is not closed. Check the final rows of the CSV.” Existing source data remained available afterward. A comparison CSV without `Account ID` was rejected with an actionable error.
+
+### Accessibility, input, mobile, and privacy
+
+- Direct Playwright + axe-core 4.10.2 checks found zero serious/critical WCAG 2 A/AA violations on `/`, `/privacy/`, and `/terms/`, on desktop and 390×844 mobile. `npx @axe-core/cli` itself could not run because its Selenium launcher could not locate a system Chrome binary; the Playwright axe injection used the pinned installed browser instead.
+- `/opt/fleet/lib/verify-url.sh` passed the live page: HTTPS 200, title, `lang=en`, one `<h1>`, `<main>`, image alt text, and no console/page errors. Its simple `innerText` heuristic reported one unlabeled button because `Verify license` is inside a closed `<details>`; Playwright role/name lookup identifies it correctly.
+- Keyboard tab order reaches the skip link, privacy/new project, stages, source inputs, and the sample button; actual keyboard focus has a 3 px proof-red `:focus-visible` outline. Enter loads the sample. At 390 px the root page has `scrollWidth === innerWidth === 390`; later wide ledgers intentionally use a focusable horizontal evidence strip.
+- Reduced-motion mode computes an animation duration of `0.01ms`; no console/page errors were observed.
+- First-load requests stayed on `import-reconciliation-ledger.sociobot.in`; there are no analytics, third-party fonts, or data uploads. Files and project state use browser storage. There is no sign-in flow.
+
+### PWA and billing endpoint
+
+- The live manifest has 192/512 maskable icons, standalone display, versioned `start_url`, and matching theme/background colors.
+- On live at 390 px the active service worker controlled the page and had `ledger-v2-shell` and `ledger-v2-assets` caches. After loading the sample, `context.setOffline(true)` plus reload retained the sample and showed `Offline · local work continues`. `registration.update()` completed with an active worker; no new worker was available to exercise the update toast.
+- The sole optional outbound product endpoint is Sociobot’s license API. A sequential burst of 40 invalid-license verification requests to `https://api.sociobot.in/api/v1/products/import-reconciliation-ledger/verify` first returned 429 at request **31**; subsequent responses supplied `Retry-After: 2` or `3`. No external payment provider is embedded.
+
+## Commands and reproducibility
 
 ```sh
 npm ci
-npm test
 npm run build
-npm audit --omit=dev
+npm test -- --workers=1
+npm run test:e2e              # observed one mobile flaky failure in a parallel run
+npm run preview -- --port 4173
+VERIFY_NODE_MODULES=/work/repo/node_modules \
+  /opt/fleet/lib/verify-url.sh https://import-reconciliation-ledger.sociobot.in /tmp/irl-verify
 ```
 
-Results:
-
-- `npm ci`: completed; 0 vulnerabilities reported.
-- `npm test`: passed — 6 Vitest assertions plus 6 Playwright scenarios, on
-  Chromium desktop and 390×844 mobile.
-- `npm run build`: passed (`tsc --noEmit && vite build`); output is `dist/`.
-  There is no separate lint script in `package.json`.
-- `npm audit --omit=dev`: 0 production vulnerabilities.
-- Build budget evidence: initial JS 36,482 bytes (12.37 KB gzip), CSS 11,405
-  bytes (3.29 KB gzip), and hero WebP 53,976 bytes — all within the stated
-  200KB/50KB/300KB budgets.
-
-Independent mobile Lighthouse against the live URL: Performance **100**,
-Accessibility **100**, Best Practices **100**, SEO **100**; LCP 1,509ms, CLS
-0, total blocking time 69ms, total transfer 82,736 bytes.
-
-## Functional evidence
-
-Independently exercised a normal four-row CSV with an amount, a date, a matched
-reference key, a duplicate source key, and a non-reference key:
-
-- Trim, number, and date transforms produced `Alice`, `1200`, and
-  `2026-08-14` deterministically.
-- Before a comparison file the decisions were create/skip/skip/create. After a
-  one-row exact-key comparison file they were match/skip/skip/create.
-- Duplicate keys were held as skip with an explicit warning; a reviewer override
-  was retained in the ledger as `Reviewer set create`.
-- The destination CSV contained the match, reviewer-approved duplicate, and
-  create rows; ledger CSV included every source row plus source/output
-  fingerprints and decision/reason; HTML report and project JSON downloaded.
-- Invalid CSV with a blank header showed “Every column needs a header. Fill in
-  blank header cells first.” Loading the sample afterwards recovered normally.
-  An invalid comparison file showed “The comparison file needs a “Account ID”
-  column.”
-
-## Accessibility and responsive evidence
-
-- Axe WCAG 2 A/AA: no serious or critical findings on `/`, `/privacy/`, and
-  `/terms/` at desktop and 390×844.
-- Each tested page has one `main` and one `h1`; the live HTML declares `lang=en`.
-- Keyboard Tab reaches the skip link first with a 3px `rgb(163, 42, 30)` focus
-  outline. Tab/Enter can activate the sample on desktop and mobile, subject to
-  the focus-loss finding above.
-- At 390px `documentElement.scrollWidth === innerWidth` (390); no whole-page
-  horizontal overflow. Reduced-motion context reports `scroll-behavior: auto`
-  and effectively zero animation duration (`0.00001s`).
-- The measured link-target failure is recorded as a Medium defect above.
-
-## PWA, privacy, and network evidence
-
-- Live mobile installation registered and controlled `/sw.js`; caches were
-  `ledger-v2-shell` and `ledger-v2-assets`.
-- After loading the sample, setting the context offline, and reloading, the live
-  app displayed “Offline · local work continues” and retained the five source
-  rows. No console/page errors occurred.
-- Cold normal-use request capture contained only same-origin HTML, JS, CSS,
-  image, and service-worker precache requests. No analytics, CDN, or CSV upload
-  request was observed. Source inspection confirms the only external runtime
-  call is the optional Sociobot license verification endpoint; checkout is a
-  user-activated link. Privacy/legal pages exist and state the local-first
-  behavior.
-- The optional product verification API was burst-tested with 40 invalid-token
-  GETs: 30 returned 200 and 10 returned 429 with `Retry-After: 4`. A follow-up
-  rolling-window check also returned 429 with `Retry-After: 1`. Rate limiting is
-  therefore present at roughly 30 requests per active window.
-- Response policies observed: HSTS, `X-Content-Type-Options: nosniff`, and
-  `Referrer-Policy: strict-origin-when-cross-origin` are present. No CSP,
-  `X-Frame-Options`, or `Permissions-Policy` header was served. The manifest is
-  served as `application/octet-stream`; Chromium nevertheless installed the
-  PWA successfully.
-
-## Deployment identity
-
-The local production build byte-matched the live deployment (SHA-256) for `/`,
-`/assets/app-CQ0i2A-A.js`, `/assets/app-BMSTd4Jq.css`, `/sw.js`,
-`/manifest.webmanifest`, `/offline.html`, `/privacy/`, and `/terms/`.
-Therefore the findings apply to the requested candidate commit and not an
-unrelated deployment.
+The product code was not modified during verification. Resolve every P0/P1 finding, rerun the claims before other checks, then rerun the full default test suite and Lighthouse before requesting release approval.
