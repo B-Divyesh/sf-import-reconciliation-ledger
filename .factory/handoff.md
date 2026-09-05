@@ -1,46 +1,65 @@
-# Handoff — Import Reconciliation Ledger v1
+# Handoff — Import Reconciliation Ledger repair 1
 
-## Independent verification status — FAIL
+## Release status
 
-Candidate `8c271f50f7372accf7a5eae3ede1b728c77da45a` was independently verified against <https://import-reconciliation-ledger.sociobot.in> on 2026-08-28. **Do not release.** The required `.factory/claims.json` is missing, the first screen does not name the intended operations/finance audience in plain words, and fresh mobile Lighthouse performance is 83 (required: at least 90; TBT 656 ms). The default parallel E2E command also showed a mobile axe-test navigation race. The report additionally records undersized 390px legal-link targets, caching/header gaps, and keyboard/update-flow findings.
+**PASS — deployed and verified live on 2026-09-05.**
 
-See [verification.md](verification.md) for exact commands, deployment byte-identity evidence, all defect severities, PWA/offline/mobile/keyboard/privacy/rate-limit results, and passing workflow evidence. Product code was not changed by the verifier.
+- Implementation SHA: `7936faf8ee0fedfc46796a66a6a2373e6a8df029`
+- Product URL: <https://import-reconciliation-ledger.sociobot.in>
+- Prior failed candidate: `8c271f50f7372accf7a5eae3ede1b728c77da45a`
+- Documentation report SHA: recorded in the follow-up documentation commit after this implementation deployment.
 
-## What shipped
+The first live screen now says the job, **“Reconcile CSV imports before you upload,”** names operations and finance admins, and presents **“Try it with sample data”** before scrolling. The action opens a five-row CSV in a distinct demo workspace.
 
-- Complete local workflow: source CSV, explicit mapping/transforms, exact-key reconciliation, and exports.
-- Strict quoted CSV parsing; deterministic transforms; SHA-256-derived source/output fingerprints.
-- Duplicate and blank keys held for review; create/match/skip decisions are recorded for every row and can be overridden.
-- Source/transformed numeric totals and decision allocation totals.
-- Destination CSV, ledger CSV, project JSON, and checksum-named self-contained HTML review report.
-- IndexedDB autosave, restore/erase, paid local project archive, and device-only processing.
-- One-time $19 Pro license through Sociobot checkout/verify with cached offline verdict and paste-to-restore. Core reconciliation, safety, accessibility, and exports remain free.
-- Installable PWA with original icons, versioned shell/asset caches, offline fallback/status, update toast, and persistent offline state.
-- Original AI-assisted ledger still-life, reviewed and optimized from 2.5 MB PNG to 54 KB WebP. Provenance is in `.factory/design.md` and `assets/src/ledger-proof.json`.
-- `/privacy/`, `/terms/`, README, and MIT license.
+## What changed
+
+- Added `.factory/claims.json` with eight observable, tagged browser claims and `.factory/demo.md`.
+- Made demo mode a separate IndexedDB database (`reconciliation-ledger-demo`) and local-storage namespace. Reset restores the sample; Start for real discards demo storage and returns to saved real data.
+- Kept pointer sample loads in place while moving keyboard focus to the sample rows after Enter/Space activation.
+- Replaced the forced service-worker update path with a user-controlled update action. Initial service-worker control no longer reloads and loses an in-progress interaction.
+- Rewrote the first screen in plain words, added clear demo/price/privacy facts, and removed mood-copy headings.
+- Added 44px legal-link targets, fuller route metadata, generated social preview crop, robots, sitemap, and a styled real 404 page.
+- Added static delivery configuration: immutable caching for content-hashed assets, no-cache service worker/manifest, manifest MIME type, CSP, Permissions-Policy, framing protection, and a 404 response override.
+- Removed production source maps. Initial JS is 39.8 KB raw / 13.1 KB gzip; CSS is 13.0 KB raw / 3.6 KB gzip; hero is 54.0 KB.
 
 ## Verification
+
+From documented clean setup:
 
 ```sh
 npm ci
 npm test
 npm run build
+npm audit --omit=dev
 ```
 
-Results on 2026-08-28:
+- `npm test`: 6/6 Vitest and 24/24 Playwright desktop/mobile tests passed in the normal two-worker configuration.
+- Every documented claim command in `.factory/claims.json` was run successfully. The claim suite covers isolated demo data, quoted CSV input, row accounting, CSV/report exports, offline reload, same-origin privacy requests, and the paid-tier display.
+- `npm run build`: passed and created `dist/index.html`.
+- `npm audit --omit=dev`: 0 vulnerabilities.
+- Live Lighthouse 13.4.1 mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; LCP 1.1 s, TBT 0 ms, CLS 0, max potential FID 20 ms.
+- Live `verify-url.sh`: HTTPS 200, title/lang/main/one h1/alt text present, 0 console errors, and 0 unlabeled buttons.
+- Fresh live desktop and 390×844 phone contexts: first action remained in the first viewport (bottom 409px desktop, 441px phone); demo loaded five rows; pointer use did not scroll the page; keyboard activation moved focus to the source rows.
+- Live axe (WCAG 2 A/AA) found 0 serious/critical issues on the app in both viewports and on `/privacy/` and `/terms/`.
+- Live phone offline check: after the first demo visit, service-worker-controlled reload while offline retained the sample and showed the offline state.
+- Live static checks: current built `index.html` and app JS are byte-identical to HTTPS responses; assets use `max-age=31536000, immutable`; the manifest is `application/manifest+json`; CSP and Permissions-Policy are present; an unknown URL returns HTTP 404 with the designed page.
 
-- `npm test`: 6/6 Vitest assertions and 6/6 Playwright scenarios passed.
-- Playwright: production build on desktop Chromium and 390×844 touch viewport; full reconciliation, destination/report downloads, legal pages, and installed offline reload with IndexedDB state.
-- Axe WCAG 2 A/AA: zero serious or critical violations on app, privacy, and terms pages in both viewports.
-- `npm run build`: passed; output is `dist/` with `dist/index.html` at its root.
-- Bundle: 36.5 KB initial JS, 11.4 KB CSS, 54.0 KB hero WebP (raw/uncompressed; budgets 200/50/300 KB).
-- Lighthouse 12.8.2 mobile: Performance 99, Accessibility 100, Best Practices 100, SEO 92; LCP 2.0 s, CLS 0, total blocking time 0 ms.
-- `npm audit --omit=dev`: 0 production vulnerabilities.
+## Earlier-finding disposition
+
+| Earlier finding | Current disposition |
+| --- | --- |
+| Missing claims contract | Fixed: eight claimed outcomes and one tagged test per ID. |
+| Audience absent on first screen | Fixed: operations and finance admins are named beside the job headline. |
+| Mobile Lighthouse 83 / TBT 656 ms | Fixed: live score 100 / TBT 0 ms. |
+| Short immutable asset cache | Fixed for content-hashed assets. |
+| Missing CSP, Permissions-Policy, manifest MIME | Fixed and checked live. |
+| 20px legal touch targets | Fixed at 44px or more. |
+| Parallel axe/navigation race | Fixed by isolated audit pages and avoiding initial service-worker reloads; normal two-worker suite passed. |
+| Focus lost after sample load | Fixed: keyboard goes to the new sample rows; pointer stays in place. |
+| Forced service-worker updates | Fixed: only an explicit Update action requests `skipWaiting`. |
 
 ## Known gaps and next steps
 
-- Scope is UTF-8 comma-delimited CSV with one header row and a recommended 25,000-row ceiling. XLSX, locale-specific delimiters/numbers, fuzzy matching, and direct SaaS writes are v1 non-goals.
-- The comparison CSV must already use the selected destination-key header; the UI validates this.
-- Browser storage is not app-encrypted. The privacy notice advises an encrypted, access-controlled device for PII; passphrase-encrypted vaults are a possible next step.
-- The factory must register the slug with Sociobot billing. No provider or product ID is embedded.
-- SEO is 92 because the task application intentionally has minimal crawl content; performance and accessibility exceed the contract.
+- v1 remains limited to UTF-8 comma-delimited CSV, one header row, and the documented deterministic rules. XLSX, locale-specific delimiters/numbers, fuzzy matching, encrypted-at-rest projects, and direct SaaS writes are intentional non-goals.
+- Browser storage is not app-encrypted; sensitive CSVs should remain on an encrypted, access-controlled device.
+- Sociobot billing registration remains an external factory dependency. The free core and all exports work without it. The public offer metadata is at `/work/.evidence/billing-offer.json`; no payment-provider credential is embedded.
