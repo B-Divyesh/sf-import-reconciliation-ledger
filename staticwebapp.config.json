@@ -1,16 +1,4 @@
 {
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": [
-      "/assets/*",
-      "/icons/*",
-      "/sw.js",
-      "/manifest.webmanifest",
-      "/robots.txt",
-      "/sitemap.xml",
-      "/*.{css,js,png,jpg,jpeg,gif,svg,webp,ico,woff2,json,webmanifest,txt,xml,wasm}"
-    ]
-  },
   "globalHeaders": {
     "Content-Security-Policy": "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self' https://api.sociobot.in; font-src 'self' data:; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests",
     "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=(), browsing-topics=()",
