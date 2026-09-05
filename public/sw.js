@@ -1,22 +1,21 @@
-const VERSION = 'ledger-v2';
+const VERSION = 'ledger-v4';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
-const PRECACHE = ['/offline.html', '/privacy/', '/terms/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/assets/ledger-proof.webp'];
+const PRECACHE = ['/offline.html', '/standalone.css', '/privacy/', '/terms/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/assets/ledger-proof-f6209d2b.webp'];
 self.addEventListener('install', (event) => event.waitUntil((async () => {
   const cache = await caches.open(SHELL);
   for (const path of PRECACHE) {
-    const response = await fetch(`${path}?offline-precache=v2`, { cache: 'reload' });
+    const response = await fetch(`${path}?offline-precache=v4`, { cache: 'reload' });
     if (response.ok) await cache.put(path, response);
   }
-  const htmlResponse = await fetch('/?offline-precache=v2', { cache: 'reload' });
+  const htmlResponse = await fetch('/?offline-precache=v4', { cache: 'reload' });
   const html = await htmlResponse.clone().text();
   await cache.put('/', htmlResponse);
   const builtAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]);
   for (const path of new Set(builtAssets)) {
-    const response = await fetch(`${path}?offline-precache=v2`, { cache: 'reload' });
+    const response = await fetch(`${path}?offline-precache=v4`, { cache: 'reload' });
     if (response.ok) await cache.put(path, response);
   }
-  await self.skipWaiting();
 })()));
 self.addEventListener('activate', (event) => event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => ![SHELL, ASSETS].includes(key)).map((key) => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener('message', (event) => { if (event.data === 'SKIP_WAITING') self.skipWaiting(); });

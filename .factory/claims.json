@@ -1,0 +1,58 @@
+[
+  {
+    "id": "demo-sandbox",
+    "claim": "Try it with sample data opens an isolated sample workspace and leaves a real workspace unchanged.",
+    "where": "landing primary action, demo banner, README",
+    "test": "npm run test:e2e -- --grep @claim:demo-sandbox",
+    "sandbox": "Create a real one-row CSV workspace, enter ?demo=1, reset the sample, then start for real and verify the one-row workspace remains."
+  },
+  {
+    "id": "row-accounting",
+    "claim": "The sample ledger accounts for every source row and flags duplicate and blank keys for review.",
+    "where": "reconciliation screen, README",
+    "test": "npm run test:e2e -- --grep @claim:row-accounting",
+    "sandbox": "Demo sample with Account ID matching and a one-key reference CSV; assert 5 source, 1 create, 1 match, 3 skip, duplicate, and blank-key evidence."
+  },
+  {
+    "id": "csv-input",
+    "claim": "Accepts UTF-8, comma-delimited CSV files with one header row, quoted commas, and quoted line breaks.",
+    "where": "source screen, footer, README",
+    "test": "npm run test:e2e -- --grep @claim:csv-input",
+    "sandbox": "Demo entry point; replace the sample with a one-row CSV containing a quoted comma and quoted line break, then assert all parsed cell content."
+  },
+  {
+    "id": "csv-export",
+    "claim": "Exports reviewed create and match rows as CSV without a Pro license.",
+    "where": "export screen, landing price fact, README",
+    "test": "npm run test:e2e -- --grep @claim:csv-export",
+    "sandbox": "Demo sample after reconciliation; download destination CSV and assert its header, two retained rows, and omitted duplicate row."
+  },
+  {
+    "id": "review-report",
+    "claim": "Exports a review report with every source row, its decision, and source and output fingerprints.",
+    "where": "export screen, README",
+    "test": "npm run test:e2e -- --grep @claim:review-report",
+    "sandbox": "Demo sample after reconciliation; download the report and assert five row records, decision evidence, and fingerprint pairs."
+  },
+  {
+    "id": "offline-reload",
+    "claim": "Works offline after the first visit.",
+    "where": "landing first-screen facts, README",
+    "test": "npm run test:e2e -- --grep @claim:offline-reload",
+    "sandbox": "Own browser context; load ?demo=1, wait for service-worker control, set offline, reload, and assert the sample workspace remains."
+  },
+  {
+    "id": "local-only",
+    "claim": "CSV data stays on this device during normal demo use.",
+    "where": "landing first-screen facts, source screen, privacy page, README",
+    "test": "npm run test:e2e -- --grep @claim:local-only",
+    "sandbox": "Record every request during the demo reconciliation and export flow; assert every HTTP request is same-origin."
+  },
+  {
+    "id": "pro-price",
+    "claim": "Optional Pro is listed as a $19 one-time license while the core workspace remains available.",
+    "where": "landing first-screen facts, project summary, terms, README",
+    "test": "npm run test:e2e -- --grep @claim:pro-price",
+    "sandbox": "Fresh free workspace; assert the displayed one-time price, the product checkout route, and that the sample workspace can be started without a license."
+  }
+]

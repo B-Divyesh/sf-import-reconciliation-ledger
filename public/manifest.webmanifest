@@ -1,9 +1,9 @@
 {
-  "id": "/?v=1",
+  "id": "/?v=4",
   "name": "Import Reconciliation Ledger",
   "short_name": "Row Ledger",
-  "description": "Account for every row before a CSV import.",
-  "start_url": "/?v=1",
+  "description": "Reconcile CSV imports locally before upload.",
+  "start_url": "/?v=4",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f2efe7",

@@ -1,7 +1,7 @@
 import './styles.css';
 import { parseCsv, toCsv } from './csv';
 import { buildLedger, fingerprint, totals } from './reconcile';
-import { deleteProject, listProjects, loadProject, saveProject } from './storage';
+import { clearProjects, deleteProject, listProjects, loadProject, saveProject, type StorageScope } from './storage';
 import { acceptReturnedLicense, checkoutUrl, restoreLicense, storedLicense, verifyLicense } from './license';
 import type { Decision, Project, TransformKind } from './types';
 
@@ -19,6 +19,19 @@ let saveTimer = 0;
 let toastTimer = 0;
 let busy = false;
 let archivedProjects: Project[] = [];
+let demoMode = new URL(location.href).searchParams.get('demo') === '1' || location.pathname === '/demo';
+
+function storageScope(): StorageScope {
+  return demoMode ? 'demo' : 'real';
+}
+
+function lastProjectKey(): string {
+  return demoMode ? 'demo:ledger:last-project' : 'ledger:last-project';
+}
+
+function setPageTitle(): void {
+  document.title = demoMode ? 'Demo — Import Reconciliation Ledger' : 'Import Reconciliation Ledger — Reconcile CSV imports';
+}
 
 function freshProject(): Project {
   const now = new Date().toISOString();
@@ -57,8 +70,8 @@ function notify(message: string, action?: string): void {
 
 async function persist(showFeedback = false): Promise<void> {
   project.updatedAt = new Date().toISOString();
-  await saveProject(project);
-  localStorage.setItem('ledger:last-project', project.id);
+  await saveProject(project, storageScope());
+  localStorage.setItem(lastProjectKey(), project.id);
   const live = document.querySelector('#save-status');
   if (live) live.textContent = 'Saved on this device';
   if (showFeedback) notify('Project saved on this device.');
@@ -86,28 +99,43 @@ function header(): string {
     <header class="site-header">
       <div class="utility-line">
         <span class="status-dot ${navigator.onLine ? '' : 'offline'}" id="network-status">${navigator.onLine ? 'Private · device only' : 'Offline · local work continues'}</span>
-        <nav aria-label="Utility"><a href="/privacy/">Privacy</a><button class="button--quiet" type="button" data-action="new-project">New project</button></nav>
+        <nav aria-label="Utility"><a href="/?demo=1">Demo</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><button class="button--quiet" type="button" data-action="new-project">New project</button></nav>
       </div>
-      <div class="masthead"><h1>Import Reconciliation Ledger</h1><p>Issue 001<br>Account for every row<br>No uploads. No guessing.</p></div>
+      <div class="masthead">
+        <div class="first-read">
+          <a class="wordmark" href="/" aria-label="Import Reconciliation Ledger home">Import Reconciliation Ledger</a>
+          <h1>Reconcile CSV imports before you upload</h1>
+          <p class="audience">For operations and finance admins, it shows every transformed, matched, skipped, and created CSV row before upload.</p>
+          <div class="first-action"><button type="button" class="button--primary" data-action="load-sample">Try it with sample data</button><span>Opens a realistic five-row import in a separate demo workspace.</span></div>
+          <ul class="first-facts"><li>Files stay on this device</li><li>Works offline after the first visit</li><li>Optional Pro is $19 once; core exports stay free</li></ul>
+        </div>
+        <p class="masthead-note">Review every row<br>before a real import.</p>
+      </div>
     </header>
+    ${demoBanner()}
     <nav class="stage-nav" aria-label="Import stages">
       ${['Source', 'Rules', 'Reconcile', 'Export'].map((label, index) => `<button type="button" class="stage-tab" data-stage="${index}" ${project.stage === index ? 'aria-current="step"' : ''} ${index > 0 && !project.sourceRows.length ? 'disabled' : ''}><span>0${index + 1}</span>${label}</button>`).join('')}
     </nav>`;
 }
 
+function demoBanner(): string {
+  if (!demoMode) return '';
+  return `<section class="demo-banner" aria-label="Demo workspace"><p><strong>Demo — sample data, nothing is saved to your real workspace.</strong> Reset the sample or return to your real workspace.</p><div><button type="button" data-action="reset-demo">Reset demo</button><button type="button" class="button--primary" data-action="start-real">Start for real</button></div></section>`;
+}
+
 function footer(): string {
   return `<footer class="site-footer"><div class="footer-inner">
-    <p><strong>Import Reconciliation Ledger</strong><br>Files stay in this browser. Generated hero imagery is original AI-assisted artwork, commissioned for this product. This tool supports review; it does not certify accounting correctness.</p>
+    <p><strong>Import Reconciliation Ledger</strong><br>Local CSV review for operations and finance admins. This tool supports review; it does not certify accounting correctness.</p>
     <nav aria-label="Legal"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://github.com/B-Divyesh/sf-import-reconciliation-ledger">Source code</a></nav>
-    <p>CSV scope: UTF-8, comma-delimited, one header row, quoted fields supported. Dates and numbers use deterministic browser rules.</p>
+    <p>CSV scope: UTF-8, comma-delimited, one header row, quoted fields supported. Built by Param Factory.</p>
   </div></footer>`;
 }
 
 function deskNote(): string {
   const counts = project.ledger.reduce((all, row) => ({ ...all, [row.decision]: all[row.decision] + 1 }), { create: 0, match: 0, skip: 0 });
-  const license = storedLicense();
+  const license = demoMode ? { valid: false } : storedLicense();
   return `<aside class="desk-note" aria-label="Desk note">
-    <p class="kicker">Desk note</p><h2>${escapeHtml(project.name)}</h2>
+    <p class="kicker">Project summary</p><h2>${escapeHtml(project.name)}</h2>
     <p id="save-status">${project.sourceRows.length ? 'Saved on this device' : 'Not yet started'}</p>
     <dl>
       <div><dt>Source rows</dt><dd>${project.sourceRows.length}</dd></div>
@@ -118,29 +146,30 @@ function deskNote(): string {
     </dl>
     <div class="actions"><button type="button" data-action="save-now">Save project</button><button type="button" class="button--danger" data-action="erase-project">Erase project</button></div>
     <div class="license-box">
-      <p class="kicker">${license.valid ? 'Pro unlocked' : 'Optional Pro desk'}</p>
+      <p class="kicker">${demoMode ? 'Demo workspace' : license.valid ? 'Pro unlocked' : 'Optional Pro workspace'}</p>
+      ${demoMode ? '<p>Demo records are isolated from your saved imports. Start for real when you are ready to use your own CSV.</p>' : `
       <p>${license.valid ? 'Project archive and reusable desk notes are active.' : 'One-time $19. Unlock a multi-project archive and reusable report notes. Reconciliation and every export stay free.'}</p>
-      ${license.valid ? `<button type="button" data-action="archive-project">Archive this edition</button>${archivedProjects.filter((item) => item.id !== project.id).slice(0, 5).map((item) => `<button class="button--quiet" type="button" data-open-project="${escapeHtml(item.id)}">Open · ${escapeHtml(item.name)}</button>`).join('')}` : `<a class="button button--primary" href="${checkoutUrl}">Buy Pro once</a><details><summary>Have a license?</summary><form data-license-form><label class="field">Paste license<input name="license" autocomplete="off" required></label><button type="submit">Verify license</button></form></details>`}
+      ${license.valid ? `<button type="button" data-action="archive-project">Archive this import</button>${archivedProjects.filter((item) => item.id !== project.id).slice(0, 5).map((item) => `<button class="button--quiet" type="button" data-open-project="${escapeHtml(item.id)}">Open · ${escapeHtml(item.name)}</button>`).join('')}` : `<a class="button button--primary" href="${checkoutUrl}">Buy Pro once</a><details><summary>Have a license?</summary><form data-license-form><label class="field">Paste license<input name="license" autocomplete="off" required></label><button type="submit" aria-label="Verify pasted license">Verify license</button></form></details>`}`}
     </div>
   </aside>`;
 }
 
 function sourceStage(): string {
-  return `<div><p class="kicker">01 / Source matter</p><h2 class="stage-heading">Bring the rows to the desk.</h2>
-    <p class="deck">Choose a UTF-8, comma-delimited CSV. It is read inside this browser and never sent to us.</p>
+  return `<div><p class="kicker">01 / Source CSV</p><h2 class="stage-heading">Choose a CSV to review</h2>
+    <p class="deck">Choose a UTF-8, comma-delimited CSV with one header row. It is read inside this browser and never sent to us.</p>
     <div class="field-row"><label class="field">Project name<input id="project-name" value="${escapeHtml(project.name)}" maxlength="80"></label>
       <label class="field">Import a project JSON<input id="project-import" type="file" accept="application/json,.json"><small>Restores a ledger you exported earlier.</small></label></div>
     <div class="upload-grid">
-      <div class="upload-panel"><label for="source-file"><span class="kicker">Primary evidence</span><strong>${project.sourceName ? escapeHtml(project.sourceName) : 'Choose source CSV'}</strong><small>${project.sourceRows.length ? `${project.sourceRows.length} rows · ${project.sourceHeaders.length} columns loaded` : 'Quoted commas and line breaks are supported. Maximum recommended size: 25,000 rows.'}</small></label><input id="source-file" type="file" accept="text/csv,.csv"></div>
-      <figure class="hero-image"><img src="/assets/ledger-proof.webp" width="960" height="640" alt="Layered ledger sheets, registration marks, and a red proofing pencil on warm newsprint" fetchpriority="high"><figcaption>Every source row leaves a mark.</figcaption></figure>
+      <div class="upload-panel"><label for="source-file"><span class="kicker">Your source file</span><strong>${project.sourceName ? escapeHtml(project.sourceName) : 'Choose source CSV'}</strong><small>${project.sourceRows.length ? `${project.sourceRows.length} rows · ${project.sourceHeaders.length} columns loaded` : 'Quoted commas and line breaks are supported.'}</small></label><input id="source-file" type="file" accept="text/csv,.csv"></div>
+      <figure class="hero-image"><img src="/assets/ledger-proof-f6209d2b.webp" width="960" height="640" alt="Layered ledger sheets, registration marks, and a red proofing pencil on warm newsprint" loading="lazy" decoding="async"><figcaption>Reviewable CSV rows become an audit record.</figcaption></figure>
     </div>
-    <div class="sample-line"><span>Need a harmless trial?</span><button type="button" data-action="load-sample">Load five-row sample</button><span>or</span><button type="button" data-action="paste-csv">Paste CSV</button></div>
+    <div class="sample-line"><span>Or paste a small CSV without uploading it.</span><button type="button" data-action="paste-csv">Paste CSV</button></div>
     ${project.sourceRows.length ? sourcePreview() : ''}
   </div>`;
 }
 
 function sourcePreview(): string {
-  return `<div class="section-rule"><h3>Source proof</h3><p>First ${Math.min(5, project.sourceRows.length)} of ${project.sourceRows.length} rows</p></div>
+  return `<div class="section-rule"><h3 id="source-proof" tabindex="-1">Source rows</h3><p>First ${Math.min(5, project.sourceRows.length)} of ${project.sourceRows.length} rows</p></div>
     <div class="table-wrap" tabindex="0" aria-label="Source CSV preview"><table><thead><tr><th>Row</th>${project.sourceHeaders.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead><tbody>
     ${project.sourceRows.slice(0, 5).map((row, index) => `<tr><td>${index + 1}</td>${project.sourceHeaders.map((header) => `<td>${escapeHtml(row[header])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
     <div class="actions"><button type="button" class="button--primary" data-action="next">Set mapping rules</button></div>`;
@@ -155,7 +184,7 @@ const transforms: { value: TransformKind; label: string }[] = [
 
 function rulesStage(): string {
   const targets = project.mappings.filter((rule) => rule.target.trim()).map((rule) => rule.target.trim());
-  return `<div><p class="kicker">02 / Rules desk</p><h2 class="stage-heading">Make every change visible.</h2>
+  return `<div><p class="kicker">02 / Mapping rules</p><h2 class="stage-heading">Show every column change</h2>
     <p class="deck">Rename destination columns and choose one deterministic transform per field. Blank destination names are omitted.</p>
     <div class="mapping-list" aria-label="Column mappings">
       ${project.mappings.map((rule, index) => `<div class="mapping-row" data-map-row="${index}">
@@ -181,7 +210,7 @@ function reconcileStage(): string {
   const amountRule = project.mappings.find((rule) => rule.target.trim() === project.amountField);
   const sourceTotal = amountRule ? project.ledger.reduce((sum, row) => sum + (Number((row.source[amountRule.source] ?? '').replace(/[^0-9+.\-]/g, '')) || 0), 0) : 0;
   const mappedFields = project.mappings.filter((rule) => rule.target.trim()).map((rule) => rule.target.trim());
-  return `<div><p class="kicker">03 / Reconciliation desk</p><h2 class="stage-heading">Account for the full edition.</h2>
+  return `<div><p class="kicker">03 / Reconcile rows</p><h2 class="stage-heading">Account for every source row</h2>
     <p class="deck">Compare against an optional existing-records CSV, inspect conflicts, and make the final decision for each source row.</p>
     <div class="field-row">
       <label class="field">Existing records CSV (optional)<input id="reference-file" type="file" accept="text/csv,.csv"><small>${project.referenceName ? `${escapeHtml(project.referenceName)} · ${project.referenceRows.length} comparison rows` : `Must contain a “${escapeHtml(project.keyField)}” column. Exact-key matches only.`}</small></label>
@@ -212,12 +241,12 @@ function exportStage(): string {
   const counts = { create: 0, match: 0, skip: 0 };
   project.ledger.forEach((row) => { counts[row.decision] += 1; });
   const unresolved = project.ledger.length !== project.sourceRows.length;
-  return `<div><p class="kicker">04 / Final edition</p><h2 class="stage-heading">Freeze the audit trail.</h2>
+  return `<div><p class="kicker">04 / Export review files</p><h2 class="stage-heading">Export the reviewed import record</h2>
     <p class="deck">The destination file contains create and match rows. The review report contains every source row, both fingerprints, changed fields, decisions, and a report checksum.</p>
     ${unresolved ? '<p class="proof-warning"><strong>The ledger is incomplete.</strong>Return to reconciliation before exporting.</p>' : `<p class="success-note"><strong>100% accounted for.</strong>${project.sourceRows.length} source rows resolve to ${counts.create} create, ${counts.match} match, and ${counts.skip} skip decisions.</p>`}
     <div class="metric-strip"><div class="metric"><strong>${project.sourceRows.length}</strong><span>Source</span></div><div class="metric"><strong>${counts.create}</strong><span>Create</span></div><div class="metric"><strong>${counts.match}</strong><span>Match</span></div><div class="metric"><strong>${counts.skip}</strong><span>Skip</span></div></div>
     <div class="field"><label for="report-note">Reviewer note</label><textarea id="report-note" maxlength="600" placeholder="Scope, approvals, or exceptions for this edition">${escapeHtml(project.reportNote)}</textarea><small>Included in the report. Reusable saved notes are part of optional Pro; this note and all exports are free.</small></div>
-    <div class="section-rule"><h3>Files on the desk</h3><p>Nothing is uploaded</p></div>
+    <div class="section-rule"><h3>Export files</h3><p>Nothing is uploaded</p></div>
     <div class="actions"><button type="button" class="button--primary" data-action="export-csv">Export destination CSV</button><button type="button" data-action="export-report">Export immutable report</button><button type="button" data-action="export-ledger">Export ledger CSV</button><button type="button" data-action="export-project">Export project JSON</button></div>
     <div class="section-rule"><h3>Before the real import</h3></div><ol><li>Review every duplicate-key and skip decision in the report.</li><li>Compare destination totals with an independent source control.</li><li>Upload the destination CSV to the target system’s preview.</li><li>Compare its proposed changes to this frozen report before committing.</li></ol>
     <div class="actions"><button type="button" data-action="back">Back to reconciliation</button></div>
@@ -230,19 +259,23 @@ function renderApp(): void {
   bindEvents();
 }
 
+function legalHeader(): string {
+  return `<a class="skip-link" href="#main">Skip to content</a><header class="site-header"><div class="utility-line"><span class="status-dot">Private · device only</span><nav aria-label="Utility"><a href="/?demo=1">Demo</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="/">Ledger</a></nav></div><div class="masthead legal-masthead"><a class="wordmark" href="/">Import Reconciliation Ledger</a></div></header>`;
+}
+
 function legalPage(kind: 'privacy' | 'terms'): void {
-  const privacy = `<p class="kicker">Effective 28 August 2026</p><h1>Privacy, in plain ink.</h1><p>Import Reconciliation Ledger is local-first. CSV contents, mapping rules, row decisions, fingerprints, and project names are processed in your browser and stored in this browser’s IndexedDB. We do not receive them.</p>
+  const privacy = `<p class="kicker">Effective 28 August 2026</p><h1>Privacy for your CSV data</h1><p>Import Reconciliation Ledger is local-first. CSV contents, mapping rules, row decisions, fingerprints, and project names are processed in your browser and stored in this browser’s IndexedDB. We do not receive them.</p>
     <h2>What leaves your device</h2><p>Nothing during normal free use. There is no analytics, advertising, telemetry, or third-party runtime script. If you buy or verify Pro, your browser contacts Sociobot’s billing API with the license token. Payment is handled on Sociobot’s hosted checkout; this app never sees card details.</p>
     <h2>Your controls</h2><p>Use “Export project JSON” to take a copy. Use “New project” to replace the current workspace. Browser site-data controls can permanently erase all saved projects and licenses. Project data is not encrypted by the app; use an encrypted, access-controlled device for sensitive records.</p>
     <h2>Retention and contact</h2><p>We retain no CSV data because it is never uploaded. The merchant of record retains purchase records under its own legal obligations. Privacy questions can be sent to <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a>.</p>`;
-  const terms = `<p class="kicker">Effective 28 August 2026</p><h1>Terms of use.</h1><p>Import Reconciliation Ledger is a deterministic preparation and review utility. It does not connect to destination systems, perform an import, or certify accounting, tax, payroll, or regulatory correctness.</p>
+  const terms = `<p class="kicker">Effective 28 August 2026</p><h1>Terms for using the ledger</h1><p>Import Reconciliation Ledger is a deterministic preparation and review utility. It does not connect to destination systems, perform an import, or certify accounting, tax, payroll, or regulatory correctness.</p>
     <h2>Your responsibility</h2><p>You are responsible for verifying mapping rules, row decisions, control totals, and the destination system’s own preview before committing an import. Keep backups of source files and exported reports.</p>
     <h2>Free and Pro use</h2><p>The free workspace includes reconciliation and all data exports. Pro is a one-time $19 license that adds the local multi-project archive and reusable report notes. Sociobot/Dodo is the merchant of record. Refunds are handled there and revoke the license automatically. Accessibility, safety warnings, and exports are never paywalled.</p>
     <h2>Warranty and liability</h2><p>The software is provided “as is,” without warranties. To the extent allowed by law, the authors are not liable for imported, changed, merged, skipped, or lost data. These terms are governed by applicable law where the merchant of record operates.</p>`;
-  app.innerHTML = `<a class="skip-link" href="#main">Skip to content</a><main id="main" class="legal"><a href="/">← Return to ledger</a>${kind === 'privacy' ? privacy : terms}</main>${footer()}`;
+  app.innerHTML = `${legalHeader()}<main id="main" class="legal"><a href="/">← Return to ledger</a>${kind === 'privacy' ? privacy : terms}</main>${footer()}`;
 }
 
-async function loadCsvFile(file: File, asReference = false): Promise<void> {
+async function loadCsvFile(file: File, asReference = false, focusTarget?: string): Promise<void> {
   if (file.size > 20 * 1024 * 1024) throw new Error('That file is over 20 MB. Split it into smaller batches first.');
   const parsed = parseCsv(await file.text());
   if (asReference) {
@@ -264,8 +297,58 @@ async function loadCsvFile(file: File, asReference = false): Promise<void> {
     project.ledger = [];
     await persist();
     renderApp();
+    if (focusTarget) requestAnimationFrame(() => document.querySelector<HTMLElement>(focusTarget)?.focus());
     notify(`${parsed.rows.length} source rows loaded locally.`);
   }
+}
+
+async function loadSample(): Promise<void> {
+  await loadCsvFile(new File([sampleCsv], 'sample-import.csv', { type: 'text/csv' }), false, '#source-proof');
+}
+
+function setDemoUrl(enabled: boolean): void {
+  const url = new URL(location.href);
+  url.pathname = '/';
+  if (enabled) url.searchParams.set('demo', '1');
+  else url.searchParams.delete('demo');
+  history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
+async function enterDemo(writeHistory = true): Promise<void> {
+  if (!demoMode && writeHistory) setDemoUrl(true);
+  demoMode = true;
+  setPageTitle();
+  archivedProjects = [];
+  project = freshProject();
+  await clearProjects('demo');
+  localStorage.removeItem('demo:ledger:last-project');
+  await loadSample();
+}
+
+async function leaveDemo(writeHistory = true): Promise<void> {
+  await clearProjects('demo');
+  localStorage.removeItem('demo:ledger:last-project');
+  if (writeHistory) {
+    const url = new URL(location.href);
+    url.pathname = '/';
+    url.searchParams.delete('demo');
+    location.assign(`${url.pathname}${url.search}${url.hash}`);
+    return;
+  }
+  demoMode = false;
+  setPageTitle();
+  const lastId = localStorage.getItem(lastProjectKey()) ?? 'current';
+  project = (await loadProject(lastId, 'real')) ?? freshProject();
+  archivedProjects = storedLicense().valid ? await listProjects('real') : [];
+  renderApp();
+  requestAnimationFrame(() => document.querySelector<HTMLElement>('#main')?.focus());
+}
+
+async function resetDemo(): Promise<void> {
+  project = freshProject();
+  await clearProjects('demo');
+  localStorage.removeItem('demo:ledger:last-project');
+  await loadSample();
 }
 
 async function applyRules(): Promise<void> {
@@ -322,15 +405,15 @@ function bindEvents(): void {
   document.querySelector('[data-action="save-now"]')?.addEventListener('click', () => void persist(true));
   document.querySelector('[data-action="archive-project"]')?.addEventListener('click', () => {
     project = { ...structuredClone(project), id: crypto.randomUUID(), updatedAt: new Date().toISOString() };
-    void persist().then(async () => { archivedProjects = await listProjects(); renderApp(); notify('Project edition added to the local archive.'); });
+    void persist().then(async () => { archivedProjects = await listProjects(storageScope()); renderApp(); notify('Project added to the local archive.'); });
   });
   document.querySelectorAll<HTMLButtonElement>('[data-open-project]').forEach((button) => button.addEventListener('click', () => {
-    void loadProject(button.dataset.openProject ?? '').then((saved) => { if (saved) { project = saved; localStorage.setItem('ledger:last-project', saved.id); renderApp(); notify(`Opened ${saved.name}.`); } });
+    void loadProject(button.dataset.openProject ?? '', storageScope()).then((saved) => { if (saved) { project = saved; localStorage.setItem(lastProjectKey(), saved.id); renderApp(); notify(`Opened ${saved.name}.`); } });
   }));
   document.querySelector('[data-action="erase-project"]')?.addEventListener('click', () => {
     if (!project.sourceRows.length || confirm(`Permanently erase “${project.name}” from this browser? Export it first if you need a copy.`)) {
       const id = project.id;
-      void deleteProject(id).then(async () => { project = freshProject(); await persist(); archivedProjects = await listProjects(); renderApp(); notify('Local project erased.'); });
+      void deleteProject(id, storageScope()).then(async () => { project = freshProject(); await persist(); archivedProjects = await listProjects(storageScope()); renderApp(); notify('Local project erased.'); });
     }
   });
   document.querySelector('[data-action="new-project"]')?.addEventListener('click', () => {
@@ -339,7 +422,9 @@ function bindEvents(): void {
   document.querySelector<HTMLInputElement>('#project-name')?.addEventListener('input', (event) => { project.name = (event.target as HTMLInputElement).value; queueSave(); });
   document.querySelector<HTMLInputElement>('#source-file')?.addEventListener('change', (event) => { const file = (event.target as HTMLInputElement).files?.[0]; if (file) void loadCsvFile(file).catch((error: Error) => notify(error.message)); });
   document.querySelector<HTMLInputElement>('#reference-file')?.addEventListener('change', (event) => { const file = (event.target as HTMLInputElement).files?.[0]; if (file) void loadCsvFile(file, true).catch((error: Error) => notify(error.message)); });
-  document.querySelector('[data-action="load-sample"]')?.addEventListener('click', () => void loadCsvFile(new File([sampleCsv], 'sample-import.csv', { type: 'text/csv' })));
+  document.querySelector('[data-action="load-sample"]')?.addEventListener('click', () => void enterDemo());
+  document.querySelector('[data-action="reset-demo"]')?.addEventListener('click', () => void resetDemo());
+  document.querySelector('[data-action="start-real"]')?.addEventListener('click', () => void leaveDemo());
   document.querySelector('[data-action="paste-csv"]')?.addEventListener('click', () => { const text = prompt('Paste CSV text. It stays in this browser.'); if (text) void loadCsvFile(new File([text], 'pasted-source.csv', { type: 'text/csv' })).catch((error: Error) => notify(error.message)); });
   document.querySelector<HTMLInputElement>('#project-import')?.addEventListener('change', (event) => {
     const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return;
@@ -358,43 +443,50 @@ function bindEvents(): void {
   document.querySelector('[data-action="export-ledger"]')?.addEventListener('click', exportLedgerCsv);
   document.querySelector('[data-action="export-report"]')?.addEventListener('click', () => void exportReport());
   document.querySelector('[data-action="export-project"]')?.addEventListener('click', () => download(`${fileStem()}-project.json`, JSON.stringify(project, null, 2), 'application/json'));
-  document.querySelector<HTMLFormElement>('[data-license-form]')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.currentTarget as HTMLFormElement); restoreLicense(String(data.get('license') ?? '')); notify('License saved. Verifying…'); void verifyLicense(true).then(async (state) => { archivedProjects = state.valid ? await listProjects() : []; renderApp(); notify(state.valid ? 'Pro desk unlocked.' : 'That license could not be verified.'); }); });
+  document.querySelector<HTMLFormElement>('[data-license-form]')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.currentTarget as HTMLFormElement); restoreLicense(String(data.get('license') ?? '')); notify('License saved. Verifying…'); void verifyLicense(true).then(async (state) => { archivedProjects = state.valid ? await listProjects('real') : []; renderApp(); notify(state.valid ? 'Pro workspace unlocked.' : 'That license could not be verified.'); }); });
 }
 
 async function registerServiceWorker(): Promise<void> {
   if (!('serviceWorker' in navigator) || import.meta.env.DEV) return;
   const registration = await navigator.serviceWorker.register('/sw.js');
+  let updateRequested = false;
   if (registration.waiting) notify('A new edition is ready.', 'Update');
   registration.addEventListener('updatefound', () => {
     const worker = registration.installing;
     worker?.addEventListener('statechange', () => { if (worker.state === 'installed' && navigator.serviceWorker.controller) notify('A new edition is ready.', 'Update'); });
   });
-  document.addEventListener('click', (event) => { if ((event.target as HTMLElement).matches('[data-toast-action]')) registration.waiting?.postMessage('SKIP_WAITING'); });
-  navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+  document.addEventListener('click', (event) => {
+    if (!(event.target as HTMLElement).matches('[data-toast-action]')) return;
+    if (registration.waiting) {
+      updateRequested = true;
+      registration.waiting.postMessage('SKIP_WAITING');
+    }
+  });
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (updateRequested) location.reload(); });
   await navigator.serviceWorker.ready;
-  const cache = await caches.open('ledger-v2-shell');
-  const shellUrls = ['/', ...Array.from(document.querySelectorAll<HTMLScriptElement | HTMLLinkElement>('script[src], link[rel="stylesheet"]')).map((element) => element instanceof HTMLScriptElement ? element.src : element.href)];
-  for (const url of shellUrls) {
-    const cacheBusted = new URL(url, location.origin);
-    cacheBusted.searchParams.set('offline-precache', 'v2');
-    const response = await fetch(cacheBusted, { cache: 'reload' });
-    if (response.ok) await cache.put(url, response);
-  }
   document.documentElement.dataset.offlineReady = 'true';
 }
 
 async function start(): Promise<void> {
   if (location.pathname.startsWith('/privacy')) return legalPage('privacy');
   if (location.pathname.startsWith('/terms')) return legalPage('terms');
-  acceptReturnedLicense();
-  const lastId = localStorage.getItem('ledger:last-project') ?? 'current';
-  try { project = (await loadProject(lastId)) ?? freshProject(); } catch { project = freshProject(); }
-  renderApp();
-  window.addEventListener('online', () => { renderApp(); notify('Back online. Local work was uninterrupted.'); void verifyLicense().then(() => renderApp()); });
+  setPageTitle();
+  if (!demoMode) acceptReturnedLicense();
+  const lastId = localStorage.getItem(lastProjectKey()) ?? 'current';
+  try { project = (await loadProject(lastId, storageScope())) ?? freshProject(); } catch { project = freshProject(); }
+  if (demoMode && !project.sourceRows.length) await loadSample();
+  else renderApp();
+  window.addEventListener('online', () => { renderApp(); notify('Back online. Local work was uninterrupted.'); if (!demoMode) void verifyLicense().then(() => renderApp()); });
   window.addEventListener('offline', () => { renderApp(); notify('Offline. Local work continues.'); });
-  void verifyLicense().then((state) => { if (state.token) renderApp(); });
+  window.addEventListener('popstate', () => {
+    const nextDemo = new URL(location.href).searchParams.get('demo') === '1' || location.pathname === '/demo';
+    if (nextDemo === demoMode) return;
+    if (nextDemo) void enterDemo(false);
+    else void leaveDemo(false);
+  });
+  if (!demoMode) void verifyLicense().then((state) => { if (state.token) renderApp(); });
   void registerServiceWorker().catch(() => { /* offline installation remains optional */ });
-  archivedProjects = storedLicense().valid ? await listProjects() : [];
+  archivedProjects = !demoMode && storedLicense().valid ? await listProjects('real') : [];
   if (archivedProjects.length > 1) renderApp();
 }
 

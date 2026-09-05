@@ -64,3 +64,5 @@ The hero is a generated editorial still-life used only on the empty/source stage
 - Model: Azure AI Foundry `factory-image`; generated 2026-08-28. Original commissioned asset for this product.
 
 Hand-authored SVG assets cover the app mark and PWA icons: a folded ledger sheet crossed by a proofing tick. They use only the product tokens, include no third-party marks, and are MIT-licensed with the application.
+
+`public/assets/ledger-social-affb5b2a.webp` is a 1200×630, 41 KB centre crop derived from the reviewed original hero still-life. It is used only for Open Graph and Twitter previews, carries no text, and has the same original-asset provenance.
