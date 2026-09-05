@@ -302,8 +302,8 @@ async function loadCsvFile(file: File, asReference = false, focusTarget?: string
   }
 }
 
-async function loadSample(): Promise<void> {
-  await loadCsvFile(new File([sampleCsv], 'sample-import.csv', { type: 'text/csv' }), false, '#source-proof');
+async function loadSample(moveFocus = false): Promise<void> {
+  await loadCsvFile(new File([sampleCsv], 'sample-import.csv', { type: 'text/csv' }), false, moveFocus ? '#source-proof' : undefined);
 }
 
 function setDemoUrl(enabled: boolean): void {
@@ -314,7 +314,7 @@ function setDemoUrl(enabled: boolean): void {
   history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
-async function enterDemo(writeHistory = true): Promise<void> {
+async function enterDemo(moveFocus = false, writeHistory = true): Promise<void> {
   if (!demoMode && writeHistory) setDemoUrl(true);
   demoMode = true;
   setPageTitle();
@@ -322,7 +322,7 @@ async function enterDemo(writeHistory = true): Promise<void> {
   project = freshProject();
   await clearProjects('demo');
   localStorage.removeItem('demo:ledger:last-project');
-  await loadSample();
+  await loadSample(moveFocus);
 }
 
 async function leaveDemo(writeHistory = true): Promise<void> {
@@ -422,7 +422,7 @@ function bindEvents(): void {
   document.querySelector<HTMLInputElement>('#project-name')?.addEventListener('input', (event) => { project.name = (event.target as HTMLInputElement).value; queueSave(); });
   document.querySelector<HTMLInputElement>('#source-file')?.addEventListener('change', (event) => { const file = (event.target as HTMLInputElement).files?.[0]; if (file) void loadCsvFile(file).catch((error: Error) => notify(error.message)); });
   document.querySelector<HTMLInputElement>('#reference-file')?.addEventListener('change', (event) => { const file = (event.target as HTMLInputElement).files?.[0]; if (file) void loadCsvFile(file, true).catch((error: Error) => notify(error.message)); });
-  document.querySelector('[data-action="load-sample"]')?.addEventListener('click', () => void enterDemo());
+  document.querySelector('[data-action="load-sample"]')?.addEventListener('click', (event) => void enterDemo((event as MouseEvent).detail === 0));
   document.querySelector('[data-action="reset-demo"]')?.addEventListener('click', () => void resetDemo());
   document.querySelector('[data-action="start-real"]')?.addEventListener('click', () => void leaveDemo());
   document.querySelector('[data-action="paste-csv"]')?.addEventListener('click', () => { const text = prompt('Paste CSV text. It stays in this browser.'); if (text) void loadCsvFile(new File([text], 'pasted-source.csv', { type: 'text/csv' })).catch((error: Error) => notify(error.message)); });
@@ -481,7 +481,7 @@ async function start(): Promise<void> {
   window.addEventListener('popstate', () => {
     const nextDemo = new URL(location.href).searchParams.get('demo') === '1' || location.pathname === '/demo';
     if (nextDemo === demoMode) return;
-    if (nextDemo) void enterDemo(false);
+    if (nextDemo) void enterDemo(false, false);
     else void leaveDemo(false);
   });
   if (!demoMode) void verifyLicense().then((state) => { if (state.token) renderApp(); });

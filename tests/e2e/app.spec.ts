@@ -137,6 +137,7 @@ test('@claim:pro-price shows the one-time Pro price while leaving the core works
   await expect(proLink).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/import-reconciliation-ledger/checkout');
   await page.getByRole('button', { name: 'Try it with sample data' }).click();
   await expect(page.getByRole('button', { name: 'Set mapping rules' })).toBeEnabled();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 });
 
 test('keeps focus after keyboard sample loading and recovers from malformed CSV', async ({ page }) => {
