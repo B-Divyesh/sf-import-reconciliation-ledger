@@ -7,7 +7,7 @@
 - Implementation SHA: `7936faf8ee0fedfc46796a66a6a2373e6a8df029`
 - Product URL: <https://import-reconciliation-ledger.sociobot.in>
 - Prior failed candidate: `8c271f50f7372accf7a5eae3ede1b728c77da45a`
-- Documentation report SHA: recorded in the follow-up documentation commit after this implementation deployment.
+- Documentation report SHA: `4ba9542348b435f2d4aafe99acb95b852b1be1b8` (later than the deployed implementation).
 
 The first live screen now says the job, **“Reconcile CSV imports before you upload,”** names operations and finance admins, and presents **“Try it with sample data”** before scrolling. The action opens a five-row CSV in a distinct demo workspace.
 
