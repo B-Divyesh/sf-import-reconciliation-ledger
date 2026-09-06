@@ -5,7 +5,7 @@
 **PASS — all strict-review findings are repaired and the implementation is live.**
 
 - Implementation SHA: `1b358ff6b86db5bb88f2349f5d9f43585bbae2b6`
-- Verification documentation SHA: pending report commit
+- Verification documentation SHA: `5aeb959ceec3e784d400e4dcc006a2e58b678e87` (report content commit)
 - Live URL: <https://import-reconciliation-ledger.sociobot.in>
 - Deployed artifact: the `dist/` build from implementation SHA `1b358ff6`
 - Evidence: `/work/.evidence/import-reconciliation-ledger-repair-2/`

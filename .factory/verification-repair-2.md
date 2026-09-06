@@ -1,6 +1,7 @@
 # Repair 2 verification — PASS
 
 - Implementation: `1b358ff6b86db5bb88f2349f5d9f43585bbae2b6`
+- Documentation: `5aeb959ceec3e784d400e4dcc006a2e58b678e87` (report content commit)
 - Live URL: <https://import-reconciliation-ledger.sociobot.in>
 - Verified: 2026-09-06
 - Findings remaining: 0 release-blocking defects
