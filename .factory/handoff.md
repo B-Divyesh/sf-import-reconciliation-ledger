@@ -1,14 +1,52 @@
-# Handoff — Import Reconciliation Ledger repair 2
+# Handoff — Import Reconciliation Ledger verification 3
 
 ## Release status
 
-**PASS — all strict-review findings are repaired and the implementation is live.**
+**PASS — independent QA found zero findings and zero untested public claims.**
 
 - Implementation SHA: `1b358ff6b86db5bb88f2349f5d9f43585bbae2b6`
-- Verification documentation SHA: `5aeb959ceec3e784d400e4dcc006a2e58b678e87` (report content commit)
+- Documentation checkout SHA: `f0777979806847ec33fe127afb25ea931a3b6787`
 - Live URL: <https://import-reconciliation-ledger.sociobot.in>
 - Deployed artifact: the `dist/` build from implementation SHA `1b358ff6`
-- Evidence: `/work/.evidence/import-reconciliation-ledger-repair-2/`
+- QA report: `.factory/verification-3.md`
+- Evidence: `/work/.evidence/import-reconciliation-ledger-verify-3/`
+
+## Independent QA verification 3
+
+No product code was changed for this verification. From the documented clean
+setup, `npm ci`, `npm audit --omit=dev`, all 13 exact claim commands, `npm
+test`, and `npm run build` passed. The normal suite passed 6 unit and 38
+browser tests with two workers.
+
+Fresh live desktop and phone contexts showed the job, intended audience, and
+sample action before scrolling. The one-click sample stayed visibly labelled
+as demo data, reconciled to 5 source / 1 create / 1 match / 3 skip with the
+expected duplicate and blank-key evidence, reset correctly, and returned to an
+unchanged real workspace. A fresh phone service-worker context retained the
+demo sample on offline reload.
+
+Live accessibility checks found zero serious or critical axe findings across
+the app, legal pages, offline page, and designed 404 page. Keyboard focus,
+reduced motion, invalid and boundary CSV recovery, same-origin normal requests,
+route titles, legal pages, links, headers, cache policy, and PWA assets passed.
+Fresh mobile Lighthouse scored 100 Performance, 100 Accessibility, 100 Best
+Practices, and 100 SEO (LCP 1,110 ms, TBT 0 ms, CLS 0).
+
+The current build is byte-identical to implementation `1b358ff6` for
+`index.html` and hashed JS/CSS. Later commits are report-only.
+
+## How to verify now
+
+```sh
+npm ci
+npm audit --omit=dev
+npm test
+npm run build
+```
+
+Run each command listed in `.factory/claims.json` independently. Open
+`https://import-reconciliation-ledger.sociobot.in/?demo=1` for the isolated
+five-row sample.
 
 ## What changed
 
