@@ -1,13 +1,15 @@
-# Handoff — Import Reconciliation Ledger repair 1
+# Handoff — Import Reconciliation Ledger
 
 ## Release status
 
-**PASS — deployed and verified live on 2026-09-05.**
+**PASS — independently verified live on 2026-09-06.**
 
 - Implementation SHA: `7936faf8ee0fedfc46796a66a6a2373e6a8df029`
 - Product URL: <https://import-reconciliation-ledger.sociobot.in>
 - Prior failed candidate: `8c271f50f7372accf7a5eae3ede1b728c77da45a`
 - Documentation report SHA: `4ba9542348b435f2d4aafe99acb95b852b1be1b8` (later than the deployed implementation).
+- Independent verification documentation checkout: `9e4622f5dc17eebb601cd46bc6a68c8081c6f3be`.
+- Independent report: [`.factory/verification-2.md`](verification-2.md). It records **0 findings** and **0 untested claims**.
 
 The first live screen now says the job, **“Reconcile CSV imports before you upload,”** names operations and finance admins, and presents **“Try it with sample data”** before scrolling. The action opens a five-row CSV in a distinct demo workspace.
 
@@ -43,6 +45,7 @@ npm audit --omit=dev
 - Live axe (WCAG 2 A/AA) found 0 serious/critical issues on the app in both viewports and on `/privacy/` and `/terms/`.
 - Live phone offline check: after the first demo visit, service-worker-controlled reload while offline retained the sample and showed the offline state.
 - Live static checks: current built `index.html` and app JS are byte-identical to HTTPS responses; assets use `max-age=31536000, immutable`; the manifest is `application/manifest+json`; CSP and Permissions-Policy are present; an unknown URL returns HTTP 404 with the designed page.
+- Verification 2 repeated all eight declared claim commands from `npm ci`, then the normal two-worker `npm test` (6 unit + 24 browser tests), `npm run build`, and `npm audit --omit=dev` (0 vulnerabilities). A fresh live full Lighthouse run returned 100 Performance, Accessibility, Best Practices, and SEO, with 0 ms TBT. Fresh desktop and phone contexts confirmed the first-screen job/audience/action, demo isolation, normal reconciliation, invalid-input recovery, keyboard focus, offline reload, route/link behavior, privacy, and accessibility.
 
 ## Earlier-finding disposition
 
