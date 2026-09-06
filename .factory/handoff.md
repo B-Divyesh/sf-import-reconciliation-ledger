@@ -2,31 +2,38 @@
 
 ## Release status
 
-**PASS — independently verified live on 2026-09-06.**
+**FAIL — strict review 1 found 5 findings and 6 untested public claims.**
 
 - Implementation SHA: `7936faf8ee0fedfc46796a66a6a2373e6a8df029`
+- Documentation checkout reviewed: `d6dbb552d458f0f4f826b94963f38b8799bed903`
 - Product URL: <https://import-reconciliation-ledger.sociobot.in>
-- Prior failed candidate: `8c271f50f7372accf7a5eae3ede1b728c77da45a`
-- Documentation report SHA: `4ba9542348b435f2d4aafe99acb95b852b1be1b8` (later than the deployed implementation).
-- Independent verification documentation checkout: `9e4622f5dc17eebb601cd46bc6a68c8081c6f3be`.
-- Independent report: [`.factory/verification-2.md`](verification-2.md). It records **0 findings** and **0 untested claims**.
+- Current report: [`.factory/review-1.md`](review-1.md)
+- Earlier passing verification: [`.factory/verification-2.md`](verification-2.md)
 
-The first live screen now says the job, **“Reconcile CSV imports before you upload,”** names operations and finance admins, and presents **“Try it with sample data”** before scrolling. The action opens a five-row CSV in a distinct demo workspace.
+The implementation was not changed during review. Commits after `7936faf`
+contain reports only, and the current build is byte-identical to the live app,
+assets, service worker, manifest, legal pages, offline page, and 404 page.
 
-## What changed
+## Current findings
 
-- Added `.factory/claims.json` with eight observable, tagged browser claims and `.factory/demo.md`.
-- Made demo mode a separate IndexedDB database (`reconciliation-ledger-demo`) and local-storage namespace. Reset restores the sample; Start for real discards demo storage and returns to saved real data.
-- Kept pointer sample loads in place while moving keyboard focus to the sample rows after Enter/Space activation.
-- Replaced the forced service-worker update path with a user-controlled update action. Initial service-worker control no longer reloads and loses an in-progress interaction.
-- Rewrote the first screen in plain words, added clear demo/price/privacy facts, and removed mood-copy headings.
-- Added 44px legal-link targets, fuller route metadata, generated social preview crop, robots, sitemap, and a styled real 404 page.
-- Added static delivery configuration: immutable caching for content-hashed assets, no-cache service worker/manifest, manifest MIME type, CSP, Permissions-Policy, framing protection, and a 404 response override.
-- Removed production source maps. Initial JS is 39.8 KB raw / 13.1 KB gzip; CSS is 13.0 KB raw / 3.6 KB gzip; hero is 54.0 KB.
+1. Six public outcomes lack complete tagged claim tests: the full mapping-rule
+   set, control totals, ledger CSV, project JSON round trip, paid archive/notes,
+   and immutable/checksum verification.
+2. The HTML review report is called immutable, but its partial displayed
+   checksum does not make the file tamper-verifiable.
+3. Paid copy promises reusable report notes, but the implementation only stores
+   one note inside each project. The archive UI exposes only five older
+   projects.
+4. Secondary pages are missing required metadata and shared structure; all
+   footers omit a version/build ID.
+5. `.factory/copy-audit.md` covers only first-screen text, not every landing
+   sentence required by the plain-words contract.
 
-## Verification
+See the review for exact locations, severity, evidence, and repair options.
 
-From documented clean setup:
+## Passing verification
+
+From a clean dependency install:
 
 ```sh
 npm ci
@@ -35,34 +42,37 @@ npm run build
 npm audit --omit=dev
 ```
 
-- `npm test`: 6/6 Vitest and 24/24 Playwright desktop/mobile tests passed in the normal two-worker configuration.
-- Every documented claim command in `.factory/claims.json` was run successfully. The claim suite covers isolated demo data, quoted CSV input, row accounting, CSV/report exports, offline reload, same-origin privacy requests, and the paid-tier display.
-- `npm run build`: passed and created `dist/index.html`.
-- `npm audit --omit=dev`: 0 vulnerabilities.
-- Live Lighthouse 13.4.1 mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; LCP 1.1 s, TBT 0 ms, CLS 0, max potential FID 20 ms.
-- Live `verify-url.sh`: HTTPS 200, title/lang/main/one h1/alt text present, 0 console errors, and 0 unlabeled buttons.
-- Fresh live desktop and 390×844 phone contexts: first action remained in the first viewport (bottom 409px desktop, 441px phone); demo loaded five rows; pointer use did not scroll the page; keyboard activation moved focus to the source rows.
-- Live axe (WCAG 2 A/AA) found 0 serious/critical issues on the app in both viewports and on `/privacy/` and `/terms/`.
-- Live phone offline check: after the first demo visit, service-worker-controlled reload while offline retained the sample and showed the offline state.
-- Live static checks: current built `index.html` and app JS are byte-identical to HTTPS responses; assets use `max-age=31536000, immutable`; the manifest is `application/manifest+json`; CSP and Permissions-Policy are present; an unknown URL returns HTTP 404 with the designed page.
-- Verification 2 repeated all eight declared claim commands from `npm ci`, then the normal two-worker `npm test` (6 unit + 24 browser tests), `npm run build`, and `npm audit --omit=dev` (0 vulnerabilities). A fresh live full Lighthouse run returned 100 Performance, Accessibility, Best Practices, and SEO, with 0 ms TBT. Fresh desktop and phone contexts confirmed the first-screen job/audience/action, demo isolation, normal reconciliation, invalid-input recovery, keyboard focus, offline reload, route/link behavior, privacy, and accessibility.
+- All eight exact `.factory/claims.json` commands passed in desktop and phone
+  projects.
+- `npm test` passed 6 unit and 24 browser tests with two workers.
+- `npm run build` created `dist/index.html`.
+- The production-only audit reported 0 vulnerabilities.
+- Fresh live Lighthouse 13.4.1 mobile scored 100 in Performance,
+  Accessibility, Best Practices, and SEO. LCP was 1.165 s, TBT 0 ms, CLS 0.
+- Live axe checks found no serious or critical issues on the app, legal pages,
+  or 404 page.
+- Fresh desktop and phone contexts confirmed the job, audience, sample action,
+  demo banner, reset, real-data isolation, populated reconciliation, exports,
+  invalid and boundary recovery, keyboard focus, reduced motion, offline
+  reload, links, and hardening headers.
+- The expected unknown-route HTTP 404 shows the designed return path. The 404
+  status itself is not a defect.
+
+Evidence is stored at
+`/work/.evidence/import-reconciliation-ledger-review-1/` and the required copy
+of the report is `/work/.evidence/qa-report.md`.
 
 ## Earlier-finding disposition
 
-| Earlier finding | Current disposition |
-| --- | --- |
-| Missing claims contract | Fixed: eight claimed outcomes and one tagged test per ID. |
-| Audience absent on first screen | Fixed: operations and finance admins are named beside the job headline. |
-| Mobile Lighthouse 83 / TBT 656 ms | Fixed: live score 100 / TBT 0 ms. |
-| Short immutable asset cache | Fixed for content-hashed assets. |
-| Missing CSP, Permissions-Policy, manifest MIME | Fixed and checked live. |
-| 20px legal touch targets | Fixed at 44px or more. |
-| Parallel axe/navigation race | Fixed by isolated audit pages and avoiding initial service-worker reloads; normal two-worker suite passed. |
-| Focus lost after sample load | Fixed: keyboard goes to the new sample rows; pointer stays in place. |
-| Forced service-worker updates | Fixed: only an explicit Update action requests `skipWaiting`. |
+The earlier missing claims file, first-screen audience, Lighthouse regression,
+caching, hardening headers, manifest MIME, legal touch targets, parallel test
+race, keyboard focus, and forced service-worker activation findings all remain
+fixed. Review 1 adds the current findings above.
 
-## Known gaps and next steps
+## Known product limits
 
-- v1 remains limited to UTF-8 comma-delimited CSV, one header row, and the documented deterministic rules. XLSX, locale-specific delimiters/numbers, fuzzy matching, encrypted-at-rest projects, and direct SaaS writes are intentional non-goals.
-- Browser storage is not app-encrypted; sensitive CSVs should remain on an encrypted, access-controlled device.
-- Sociobot billing registration remains an external factory dependency. The free core and all exports work without it. The public offer metadata is at `/work/.evidence/billing-offer.json`; no payment-provider credential is embedded.
+The documented v1 input remains UTF-8 comma-delimited CSV with one header row,
+deterministic rules, exact matching, and no direct SaaS writes. Browser storage
+is not app-encrypted; users are told to use an encrypted, access-controlled
+device for sensitive data. The product is static and has no backend or shared
+database.
