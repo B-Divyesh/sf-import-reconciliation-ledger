@@ -1,19 +1,19 @@
-# Handoff — Import Reconciliation Ledger verification 3
+# Handoff — Import Reconciliation Ledger review 2
 
 ## Release status
 
-**PASS — independent QA found zero findings and zero untested public claims.**
+**PASS — fresh strict review found zero findings and zero untested public claims.**
 
 - Implementation SHA: `1b358ff6b86db5bb88f2349f5d9f43585bbae2b6`
-- Documentation checkout SHA: `f0777979806847ec33fe127afb25ea931a3b6787`
+- Documentation checkout SHA: `f0db558ac5e1e2c6c1c271c48f78509a322363e9`
 - Live URL: <https://import-reconciliation-ledger.sociobot.in>
 - Deployed artifact: the `dist/` build from implementation SHA `1b358ff6`
-- QA report: `.factory/verification-3.md`
-- Evidence: `/work/.evidence/import-reconciliation-ledger-verify-3/`
+- QA report: `.factory/review-2.md`
+- Evidence: `/work/.evidence/import-reconciliation-ledger-review-2/`
 
-## Independent QA verification 3
+## Strict review 2
 
-No product code was changed for this verification. From the documented clean
+No product code was changed for this review. From the documented clean
 setup, `npm ci`, `npm audit --omit=dev`, all 13 exact claim commands, `npm
 test`, and `npm run build` passed. The normal suite passed 6 unit and 38
 browser tests with two workers.
@@ -30,10 +30,11 @@ the app, legal pages, offline page, and designed 404 page. Keyboard focus,
 reduced motion, invalid and boundary CSV recovery, same-origin normal requests,
 route titles, legal pages, links, headers, cache policy, and PWA assets passed.
 Fresh mobile Lighthouse scored 100 Performance, 100 Accessibility, 100 Best
-Practices, and 100 SEO (LCP 1,110 ms, TBT 0 ms, CLS 0).
+Practices, and 100 SEO (LCP 1,177 ms, TBT 0 ms, CLS 0).
 
 The current build is byte-identical to implementation `1b358ff6` for
-`index.html` and hashed JS/CSS. Later commits are report-only.
+`index.html` and hashed JS/CSS. The commits after that implementation change
+only factory reports.
 
 ## How to verify now
 
@@ -94,7 +95,7 @@ npm audit --omit=dev
 - All collected internal links returned 200; GitHub returned 200; checkout returned the expected 303 to the hosted merchant; the mail link is valid.
 - A deliberate unknown route returned HTTP 404 with the designed page. Direct `/404.html` returned 200 as an asset, which is expected.
 - Live responses include CSP and the required hardening headers. The manifest is `application/manifest+json`; hashed assets use one-year immutable caching.
-- Live Lighthouse 13.4.1 mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; LCP 1,146 ms, TBT 0 ms, CLS 0.
+- Live Lighthouse 13.4.1 mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; LCP 1,177 ms, TBT 0 ms, CLS 0.
 - The live invalid-license endpoint returned `valid: false` with reason `invalid`. No real purchase or entitlement was invented.
 
 ## Earlier findings disposition
