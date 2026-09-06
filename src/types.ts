@@ -38,6 +38,13 @@ export interface Project {
   reportNote: string;
 }
 
+export interface SavedNote {
+  id: string;
+  name: string;
+  body: string;
+  updatedAt: string;
+}
+
 export interface CsvResult {
   headers: string[];
   rows: Record<string, string>[];

@@ -1,9 +1,9 @@
 import './styles.css';
 import { parseCsv, toCsv } from './csv';
-import { buildLedger, fingerprint, totals } from './reconcile';
-import { clearProjects, deleteProject, listProjects, loadProject, saveProject, type StorageScope } from './storage';
+import { buildLedger, totals } from './reconcile';
+import { clearProjects, deleteNote, deleteProject, listNotes, listProjects, loadProject, saveNote, saveProject, type StorageScope } from './storage';
 import { acceptReturnedLicense, checkoutUrl, restoreLicense, storedLicense, verifyLicense } from './license';
-import type { Decision, Project, TransformKind } from './types';
+import type { Decision, Project, SavedNote, TransformKind } from './types';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -19,7 +19,10 @@ let saveTimer = 0;
 let toastTimer = 0;
 let busy = false;
 let archivedProjects: Project[] = [];
+let savedNotes: SavedNote[] = [];
 let demoMode = new URL(location.href).searchParams.get('demo') === '1' || location.pathname === '/demo';
+
+const version = '1.1.0';
 
 function storageScope(): StorageScope {
   return demoMode ? 'demo' : 'real';
@@ -126,15 +129,16 @@ function demoBanner(): string {
 function footer(): string {
   return `<footer class="site-footer"><div class="footer-inner">
     <p><strong>Import Reconciliation Ledger</strong><br>Local CSV review for operations and finance admins. This tool supports review; it does not certify accounting correctness.</p>
-    <nav aria-label="Legal"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://github.com/B-Divyesh/sf-import-reconciliation-ledger">Source code</a></nav>
-    <p>CSV scope: UTF-8, comma-delimited, one header row, quoted fields supported. Built by Param Factory.</p>
+    <nav aria-label="Legal"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://github.com/B-Divyesh/sf-import-reconciliation-ledger" target="_blank" rel="noreferrer">Source code (opens in new tab)</a></nav>
+    <p>CSV scope: UTF-8, comma-delimited, one header row, quoted fields supported.<br>Built by Param Factory · Version ${version}</p>
   </div></footer>`;
 }
 
 function deskNote(): string {
   const counts = project.ledger.reduce((all, row) => ({ ...all, [row.decision]: all[row.decision] + 1 }), { create: 0, match: 0, skip: 0 });
   const license = demoMode ? { valid: false } : storedLicense();
-  return `<aside class="desk-note" aria-label="Desk note">
+  const archive = archivedProjects.filter((item) => item.id !== project.id);
+  return `<aside class="desk-note" aria-label="Project summary">
     <p class="kicker">Project summary</p><h2>${escapeHtml(project.name)}</h2>
     <p id="save-status">${project.sourceRows.length ? 'Saved on this device' : 'Not yet started'}</p>
     <dl>
@@ -146,10 +150,10 @@ function deskNote(): string {
     </dl>
     <div class="actions"><button type="button" data-action="save-now">Save project</button><button type="button" class="button--danger" data-action="erase-project">Erase project</button></div>
     <div class="license-box">
-      <p class="kicker">${demoMode ? 'Demo workspace' : license.valid ? 'Pro unlocked' : 'Optional Pro workspace'}</p>
+      <p class="kicker">${demoMode ? 'Demo workspace' : license.valid ? 'Pro active' : 'Optional Pro workspace'}</p>
       ${demoMode ? '<p>Demo records are isolated from your saved imports. Start for real when you are ready to use your own CSV.</p>' : `
-      <p>${license.valid ? 'Project archive and reusable desk notes are active.' : 'One-time $19. Unlock a multi-project archive and reusable report notes. Reconciliation and every export stay free.'}</p>
-      ${license.valid ? `<button type="button" data-action="archive-project">Archive this import</button>${archivedProjects.filter((item) => item.id !== project.id).slice(0, 5).map((item) => `<button class="button--quiet" type="button" data-open-project="${escapeHtml(item.id)}">Open · ${escapeHtml(item.name)}</button>`).join('')}` : `<a class="button button--primary" href="${checkoutUrl}">Buy Pro once</a><details><summary>Have a license?</summary><form data-license-form><label class="field">Paste license<input name="license" autocomplete="off" required></label><button type="submit" aria-label="Verify pasted license">Verify license</button></form></details>`}`}
+      <p>${license.valid ? 'The local project archive and reusable report notes are active.' : 'One-time $19. Pro adds a local multi-project archive and reusable report notes. Reconciliation and every export stay free.'}</p>
+      ${license.valid ? `<button type="button" data-action="archive-project">Archive this import</button><div class="archive-list" aria-label="Saved project archive"><p>${archive.length} archived ${archive.length === 1 ? 'project' : 'projects'}</p>${archive.length ? archive.map((item) => `<button class="button--quiet" type="button" data-open-project="${escapeHtml(item.id)}">Open · ${escapeHtml(item.name)}</button>`).join('') : '<p>No archived projects yet.</p>'}</div>` : `<a class="button button--primary" href="${checkoutUrl}" target="_blank" rel="noreferrer">Buy Pro once (opens in new tab)</a><details><summary>Have a license?</summary><form data-license-form><label class="field">Paste license<input name="license" autocomplete="off" required></label><button type="submit" aria-label="Verify pasted license">Verify license</button></form></details>`}`}
     </div>
   </aside>`;
 }
@@ -241,16 +245,31 @@ function exportStage(): string {
   const counts = { create: 0, match: 0, skip: 0 };
   project.ledger.forEach((row) => { counts[row.decision] += 1; });
   const unresolved = project.ledger.length !== project.sourceRows.length;
+  const proActive = !demoMode && storedLicense().valid;
   return `<div><p class="kicker">04 / Export review files</p><h2 class="stage-heading">Export the reviewed import record</h2>
-    <p class="deck">The destination file contains create and match rows. The review report contains every source row, both fingerprints, changed fields, decisions, and a report checksum.</p>
+    <p class="deck">The destination file contains create and match rows. The frozen review report records every source row, both fingerprints, changed fields, and decisions.</p>
     ${unresolved ? '<p class="proof-warning"><strong>The ledger is incomplete.</strong>Return to reconciliation before exporting.</p>' : `<p class="success-note"><strong>100% accounted for.</strong>${project.sourceRows.length} source rows resolve to ${counts.create} create, ${counts.match} match, and ${counts.skip} skip decisions.</p>`}
     <div class="metric-strip"><div class="metric"><strong>${project.sourceRows.length}</strong><span>Source</span></div><div class="metric"><strong>${counts.create}</strong><span>Create</span></div><div class="metric"><strong>${counts.match}</strong><span>Match</span></div><div class="metric"><strong>${counts.skip}</strong><span>Skip</span></div></div>
-    <div class="field"><label for="report-note">Reviewer note</label><textarea id="report-note" maxlength="600" placeholder="Scope, approvals, or exceptions for this edition">${escapeHtml(project.reportNote)}</textarea><small>Included in the report. Reusable saved notes are part of optional Pro; this note and all exports are free.</small></div>
+    <div class="field"><label for="report-note">Reviewer note</label><textarea id="report-note" maxlength="600" placeholder="Add scope, approvals, or exceptions">${escapeHtml(project.reportNote)}</textarea><small>This note and every export are free. Pro can save a note for another project.</small></div>
+    ${proActive ? reusableNotes() : ''}
     <div class="section-rule"><h3>Export files</h3><p>Nothing is uploaded</p></div>
-    <div class="actions"><button type="button" class="button--primary" data-action="export-csv">Export destination CSV</button><button type="button" data-action="export-report">Export immutable report</button><button type="button" data-action="export-ledger">Export ledger CSV</button><button type="button" data-action="export-project">Export project JSON</button></div>
+    <div class="actions"><button type="button" class="button--primary" data-action="export-csv">Export destination CSV</button><button type="button" data-action="export-report">Export review report</button><button type="button" data-action="export-ledger">Export ledger CSV</button><button type="button" data-action="export-project">Export project JSON</button></div>
     <div class="section-rule"><h3>Before the real import</h3></div><ol><li>Review every duplicate-key and skip decision in the report.</li><li>Compare destination totals with an independent source control.</li><li>Upload the destination CSV to the target system’s preview.</li><li>Compare its proposed changes to this frozen report before committing.</li></ol>
     <div class="actions"><button type="button" data-action="back">Back to reconciliation</button></div>
   </div>`;
+}
+
+function reusableNotes(): string {
+  return `<fieldset class="saved-notes"><legend>Reusable Pro notes</legend>
+    <div class="field-row">
+      <label class="field">Saved note name<input id="saved-note-name" maxlength="60" placeholder="Example: Migration approval"></label>
+      <div class="field"><span>Save this reviewer note</span><button type="button" data-action="save-note">Save reusable note</button></div>
+    </div>
+    <div class="field-row">
+      <label class="field">Saved notes<select id="saved-note"><option value="">${savedNotes.length ? 'Choose a saved note' : 'No saved notes yet'}</option>${savedNotes.map((note) => `<option value="${escapeHtml(note.id)}">${escapeHtml(note.name)}</option>`).join('')}</select></label>
+      <div class="actions saved-note-actions"><button type="button" data-action="apply-note" ${savedNotes.length ? '' : 'disabled'}>Use saved note</button><button type="button" data-action="delete-note" ${savedNotes.length ? '' : 'disabled'}>Delete saved note</button></div>
+    </div>
+  </fieldset>`;
 }
 
 function renderApp(): void {
@@ -319,6 +338,7 @@ async function enterDemo(moveFocus = false, writeHistory = true): Promise<void> 
   demoMode = true;
   setPageTitle();
   archivedProjects = [];
+  savedNotes = [];
   project = freshProject();
   await clearProjects('demo');
   localStorage.removeItem('demo:ledger:last-project');
@@ -339,7 +359,12 @@ async function leaveDemo(writeHistory = true): Promise<void> {
   setPageTitle();
   const lastId = localStorage.getItem(lastProjectKey()) ?? 'current';
   project = (await loadProject(lastId, 'real')) ?? freshProject();
-  archivedProjects = storedLicense().valid ? await listProjects('real') : [];
+  if (storedLicense().valid) {
+    [archivedProjects, savedNotes] = await Promise.all([listProjects('real'), listNotes()]);
+  } else {
+    archivedProjects = [];
+    savedNotes = [];
+  }
   renderApp();
   requestAnimationFrame(() => document.querySelector<HTMLElement>('#main')?.focus());
 }
@@ -389,11 +414,11 @@ function exportLedgerCsv(): void {
 
 async function exportReport(): Promise<void> {
   const generatedAt = new Date().toISOString();
-  const checksum = await fingerprint({ project: project.name, generatedAt, ledger: project.ledger.map((row) => `${row.sourceFingerprint}:${row.outputFingerprint}:${row.decision}`).join('|') });
   const fields = project.mappings.filter((rule) => rule.target.trim()).map((rule) => rule.target.trim());
-  const report = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(project.name)} — reconciliation report</title><style>body{max-width:1200px;margin:40px auto;padding:0 20px;color:#171714;background:#fbfaf6;font:14px/1.5 ui-monospace,monospace}h1{font:700 52px/.9 Georgia,serif;border-bottom:6px solid}table{width:100%;border-collapse:collapse}th{background:#171714;color:#fff;text-align:left}th,td{padding:8px;border:1px solid #777;vertical-align:top}.skip{background:#f1ddd8}.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.meta div{border-top:2px solid;padding:8px 0}@media(max-width:600px){.meta{grid-template-columns:1fr 1fr}.scroll{overflow:auto}}@media print{body{margin:0}}</style></head><body><main><p>IMMUTABLE REVIEW EDITION</p><h1>${escapeHtml(project.name)}</h1><div class="meta"><div>Generated<br><strong>${generatedAt}</strong></div><div>Source<br><strong>${escapeHtml(project.sourceName)}</strong></div><div>Rows<br><strong>${project.sourceRows.length}</strong></div><div>Checksum<br><strong>${checksum}</strong></div></div><h2>Reviewer note</h2><p>${escapeHtml(project.reportNote || 'No note supplied.')}</p><h2>Rules</h2><ul>${project.mappings.filter((rule) => rule.target.trim()).map((rule) => `<li>${escapeHtml(rule.source)} → ${escapeHtml(rule.target)} · ${escapeHtml(rule.transform)} ${escapeHtml(rule.argument)}</li>`).join('')}</ul><h2>Row ledger</h2><div class="scroll"><table><thead><tr><th>Row</th><th>Decision / reason</th><th>Fingerprints</th>${fields.map((field) => `<th>${escapeHtml(field)}</th>`).join('')}</tr></thead><tbody>${project.ledger.map((row) => `<tr class="${row.decision === 'skip' ? 'skip' : ''}"><td>${row.index + 1}</td><td><strong>${row.decision.toUpperCase()}</strong><br>${escapeHtml(row.reason)}</td><td>S ${row.sourceFingerprint}<br>O ${row.outputFingerprint}</td>${fields.map((field) => `<td>${escapeHtml(row.transformed[field])}${row.changedFields.includes(field) ? ' †' : ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p>† changed by a declared rule. Generated locally by Import Reconciliation Ledger. This report supports review and does not certify accounting correctness.</p></main></body></html>`;
-  download(`${fileStem()}-review-${checksum}.html`, report, 'text/html;charset=utf-8');
-  notify(`Review report frozen with checksum ${checksum}.`);
+  const report = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(project.name)} — reconciliation report</title><style>body{max-width:1200px;margin:40px auto;padding:0 20px;color:#171714;background:#fbfaf6;font:14px/1.5 ui-monospace,monospace}h1{font:700 52px/.9 Georgia,serif;border-bottom:6px solid}table{width:100%;border-collapse:collapse}th{background:#171714;color:#fff;text-align:left}th,td{padding:8px;border:1px solid #777;vertical-align:top}.skip{background:#f1ddd8}.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.meta div{border-top:2px solid;padding:8px 0}@media(max-width:600px){.meta{grid-template-columns:1fr}.scroll{overflow:auto}}@media print{body{margin:0}}</style></head><body><main><p>FROZEN REVIEW SNAPSHOT</p><h1>${escapeHtml(project.name)}</h1><div class="meta"><div>Generated<br><strong>${generatedAt}</strong></div><div>Source<br><strong>${escapeHtml(project.sourceName)}</strong></div><div>Rows<br><strong>${project.sourceRows.length}</strong></div></div><h2>Reviewer note</h2><p>${escapeHtml(project.reportNote || 'No note supplied.')}</p><h2>Rules</h2><ul>${project.mappings.filter((rule) => rule.target.trim()).map((rule) => `<li>${escapeHtml(rule.source)} → ${escapeHtml(rule.target)} · ${escapeHtml(rule.transform)} ${escapeHtml(rule.argument)}</li>`).join('')}</ul><h2>Row ledger</h2><div class="scroll"><table><thead><tr><th>Row</th><th>Decision / reason</th><th>Fingerprints</th>${fields.map((field) => `<th>${escapeHtml(field)}</th>`).join('')}</tr></thead><tbody>${project.ledger.map((row) => `<tr class="${row.decision === 'skip' ? 'skip' : ''}"><td>${row.index + 1}</td><td><strong>${row.decision.toUpperCase()}</strong><br>${escapeHtml(row.reason)}</td><td>S ${row.sourceFingerprint}<br>O ${row.outputFingerprint}</td>${fields.map((field) => `<td>${escapeHtml(row.transformed[field])}${row.changedFields.includes(field) ? ' †' : ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p>† changed by a declared rule. Generated locally by Import Reconciliation Ledger. This editable snapshot supports review and does not certify accounting correctness.</p></main></body></html>`;
+  const stamp = generatedAt.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  download(`${fileStem()}-review-${stamp}.html`, report, 'text/html;charset=utf-8');
+  notify('Frozen review report exported.');
 }
 
 function bindEvents(): void {
@@ -404,8 +429,8 @@ function bindEvents(): void {
   document.querySelector('[data-action="back"]')?.addEventListener('click', () => { project.stage = Math.max(0, project.stage - 1); queueSave(); renderApp(); document.querySelector<HTMLElement>('#main')?.focus(); });
   document.querySelector('[data-action="save-now"]')?.addEventListener('click', () => void persist(true));
   document.querySelector('[data-action="archive-project"]')?.addEventListener('click', () => {
-    project = { ...structuredClone(project), id: crypto.randomUUID(), updatedAt: new Date().toISOString() };
-    void persist().then(async () => { archivedProjects = await listProjects(storageScope()); renderApp(); notify('Project added to the local archive.'); });
+    const archived = { ...structuredClone(project), id: crypto.randomUUID(), updatedAt: new Date().toISOString() };
+    void saveProject(archived, 'real').then(async () => { archivedProjects = await listProjects('real'); renderApp(); notify('Project added to the local archive.'); });
   });
   document.querySelectorAll<HTMLButtonElement>('[data-open-project]').forEach((button) => button.addEventListener('click', () => {
     void loadProject(button.dataset.openProject ?? '', storageScope()).then((saved) => { if (saved) { project = saved; localStorage.setItem(lastProjectKey(), saved.id); renderApp(); notify(`Opened ${saved.name}.`); } });
@@ -439,21 +464,45 @@ function bindEvents(): void {
   document.querySelectorAll<HTMLSelectElement>('[data-decision-index]').forEach((select) => select.addEventListener('change', () => { const row = project.ledger[Number(select.dataset.decisionIndex)]; row.decision = select.value as Decision; row.reason = `Reviewer set ${select.value}`; queueSave(); renderApp(); }));
   document.querySelector<HTMLSelectElement>('#row-filter')?.addEventListener('change', (event) => { const filter = (event.target as HTMLSelectElement).value; document.querySelectorAll<HTMLTableRowElement>('#ledger-table tbody tr').forEach((row) => { row.hidden = filter !== 'all' && (filter === 'attention' ? row.dataset.attention !== 'true' : row.dataset.decision !== filter); }); });
   document.querySelector<HTMLTextAreaElement>('#report-note')?.addEventListener('input', (event) => { project.reportNote = (event.target as HTMLTextAreaElement).value; queueSave(); });
+  document.querySelector('[data-action="save-note"]')?.addEventListener('click', () => {
+    const name = document.querySelector<HTMLInputElement>('#saved-note-name')?.value.trim() ?? '';
+    if (!name) return notify('Name the reusable note first.');
+    if (!project.reportNote.trim()) return notify('Write a reviewer note before saving it.');
+    const note: SavedNote = { id: crypto.randomUUID(), name, body: project.reportNote, updatedAt: new Date().toISOString() };
+    void saveNote(note).then(async () => { savedNotes = await listNotes(); renderApp(); notify(`Saved reusable note “${name}”.`); });
+  });
+  document.querySelector('[data-action="apply-note"]')?.addEventListener('click', () => {
+    const id = document.querySelector<HTMLSelectElement>('#saved-note')?.value ?? '';
+    const note = savedNotes.find((item) => item.id === id);
+    if (!note) return notify('Choose a saved note first.');
+    project.reportNote = note.body;
+    queueSave();
+    renderApp();
+    requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('#report-note')?.focus());
+    notify(`Used saved note “${note.name}”.`);
+  });
+  document.querySelector('[data-action="delete-note"]')?.addEventListener('click', () => {
+    const id = document.querySelector<HTMLSelectElement>('#saved-note')?.value ?? '';
+    const note = savedNotes.find((item) => item.id === id);
+    if (!note) return notify('Choose a saved note first.');
+    if (!confirm(`Delete reusable note “${note.name}” from this browser?`)) return;
+    void deleteNote(note.id).then(async () => { savedNotes = await listNotes(); renderApp(); notify('Reusable note deleted.'); });
+  });
   document.querySelector('[data-action="export-csv"]')?.addEventListener('click', exportDestination);
   document.querySelector('[data-action="export-ledger"]')?.addEventListener('click', exportLedgerCsv);
   document.querySelector('[data-action="export-report"]')?.addEventListener('click', () => void exportReport());
   document.querySelector('[data-action="export-project"]')?.addEventListener('click', () => download(`${fileStem()}-project.json`, JSON.stringify(project, null, 2), 'application/json'));
-  document.querySelector<HTMLFormElement>('[data-license-form]')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.currentTarget as HTMLFormElement); restoreLicense(String(data.get('license') ?? '')); notify('License saved. Verifying…'); void verifyLicense(true).then(async (state) => { archivedProjects = state.valid ? await listProjects('real') : []; renderApp(); notify(state.valid ? 'Pro workspace unlocked.' : 'That license could not be verified.'); }); });
+  document.querySelector<HTMLFormElement>('[data-license-form]')?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(event.currentTarget as HTMLFormElement); restoreLicense(String(data.get('license') ?? '')); notify('License saved. Verifying…'); void verifyLicense(true).then(async (state) => { [archivedProjects, savedNotes] = state.valid ? await Promise.all([listProjects('real'), listNotes()]) : [[], []]; renderApp(); notify(state.valid ? 'Pro workspace active.' : 'That license could not be verified.'); }); });
 }
 
 async function registerServiceWorker(): Promise<void> {
   if (!('serviceWorker' in navigator) || import.meta.env.DEV) return;
   const registration = await navigator.serviceWorker.register('/sw.js');
   let updateRequested = false;
-  if (registration.waiting) notify('A new edition is ready.', 'Update');
+  if (registration.waiting) notify('An app update is ready.', 'Update');
   registration.addEventListener('updatefound', () => {
     const worker = registration.installing;
-    worker?.addEventListener('statechange', () => { if (worker.state === 'installed' && navigator.serviceWorker.controller) notify('A new edition is ready.', 'Update'); });
+    worker?.addEventListener('statechange', () => { if (worker.state === 'installed' && navigator.serviceWorker.controller) notify('An app update is ready.', 'Update'); });
   });
   document.addEventListener('click', (event) => {
     if (!(event.target as HTMLElement).matches('[data-toast-action]')) return;
@@ -476,7 +525,7 @@ async function start(): Promise<void> {
   try { project = (await loadProject(lastId, storageScope())) ?? freshProject(); } catch { project = freshProject(); }
   if (demoMode && !project.sourceRows.length) await loadSample();
   else renderApp();
-  window.addEventListener('online', () => { renderApp(); notify('Back online. Local work was uninterrupted.'); if (!demoMode) void verifyLicense().then(() => renderApp()); });
+  window.addEventListener('online', () => { renderApp(); notify('Back online. Local work was uninterrupted.'); if (!demoMode) void verifyLicense().then(async (state) => { [archivedProjects, savedNotes] = state.valid ? await Promise.all([listProjects('real'), listNotes()]) : [[], []]; renderApp(); }); });
   window.addEventListener('offline', () => { renderApp(); notify('Offline. Local work continues.'); });
   window.addEventListener('popstate', () => {
     const nextDemo = new URL(location.href).searchParams.get('demo') === '1' || location.pathname === '/demo';
@@ -484,10 +533,12 @@ async function start(): Promise<void> {
     if (nextDemo) void enterDemo(false, false);
     else void leaveDemo(false);
   });
-  if (!demoMode) void verifyLicense().then((state) => { if (state.token) renderApp(); });
+  if (!demoMode) void verifyLicense().then(async (state) => { if (state.valid) [archivedProjects, savedNotes] = await Promise.all([listProjects('real'), listNotes()]); else if (state.token) [archivedProjects, savedNotes] = [[], []]; if (state.token) renderApp(); });
   void registerServiceWorker().catch(() => { /* offline installation remains optional */ });
-  archivedProjects = !demoMode && storedLicense().valid ? await listProjects('real') : [];
-  if (archivedProjects.length > 1) renderApp();
+  if (!demoMode && storedLicense().valid) {
+    [archivedProjects, savedNotes] = await Promise.all([listProjects('real'), listNotes()]);
+  }
+  if (archivedProjects.length > 1 || savedNotes.length) renderApp();
 }
 
 void start();

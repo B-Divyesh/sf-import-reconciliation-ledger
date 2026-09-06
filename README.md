@@ -7,12 +7,17 @@ Live: <https://import-reconciliation-ledger.sociobot.in>
 ## What it does
 
 - [Accounts for every sample row and flags blank or duplicate keys for review.](.factory/claims.json)
+- [Renames or omits columns and applies each documented deterministic rule.](.factory/claims.json)
+- [Shows source and transformed totals split by create, match, and skip.](.factory/claims.json)
 - [Exports reviewed create and match rows as CSV without a Pro license.](.factory/claims.json)
-- [Exports a review report with every source row, decision, and fingerprint pair.](.factory/claims.json)
+- [Exports a ledger CSV with one evidence record per source row.](.factory/claims.json)
+- [Exports a frozen review report with every source row, decision, and fingerprint pair.](.factory/claims.json)
+- [Exports and restores project JSON with decisions and reviewer notes.](.factory/claims.json)
 - [Keeps demo work isolated from saved imports and works offline after the first visit.](.factory/claims.json)
 - [Keeps CSV data on the device during normal use.](.factory/claims.json)
+- [Adds a local project archive and cross-project saved notes with Pro.](.factory/claims.json)
 
-The supported input is UTF-8, comma-delimited CSV with one header row. The app offers explicit rename, trim, case, exact-replace, date, and number rules; exact-key comparison; row counts; optional control totals; destination CSV; ledger CSV; checksum-named HTML report; and project JSON export.
+The supported input is UTF-8, comma-delimited CSV with one header row. The app applies explicit rename, omit, trim, case, exact-replace, date, and number rules. It also provides exact-key comparison, row counts, optional control totals, destination CSV, ledger CSV, a frozen HTML review report, and project JSON export.
 
 It does not write to business systems, guess mappings, or certify accounting correctness.
 
@@ -32,11 +37,13 @@ npm run build
 npm run preview
 ```
 
-`npm test` runs Vitest plus Playwright desktop/mobile, accessibility, export, demo-isolation, and offline checks. Each public claim has an independently runnable command in [`.factory/claims.json`](.factory/claims.json). The production build lands in `dist/`, with `dist/index.html` at its root. `staticwebapp.config.json` is copied into `dist/` with immutable cache rules for hashed assets, the manifest media type, hardening headers, navigation fallback, and the designed 404 page.
+`npm test` runs Vitest plus Playwright desktop/mobile, accessibility, export, demo-isolation, and offline checks. Each public claim has an independently runnable command in [`.factory/claims.json`](.factory/claims.json). The production build lands in `dist/`, with `dist/index.html` at its root. `staticwebapp.config.json` is copied into `dist/` with immutable cache rules for hashed assets, the manifest media type, hardening headers, and the designed 404 response.
+
+To deploy, publish the generated `dist/` directory as a static site at the product origin. Keep `staticwebapp.config.json` at the deployment root so route errors, headers, and cache rules are retained.
 
 ## Privacy and paid tier
 
-CSV/project data stays in browser IndexedDB; there is no analytics or telemetry. Users should still use an encrypted, access-controlled device for sensitive records. Free use includes reconciliation and every export. Optional Pro is a $19 one-time license for a local multi-project archive and reusable notes, verified only through the Sociobot billing API. No product ID or payment provider is embedded. Billing registration is a factory dependency; unavailable licensing does not limit the free core.
+CSV/project data stays in browser IndexedDB; there is no analytics or telemetry. Users should still use an encrypted, access-controlled device for sensitive records. Free use includes reconciliation and every export. Optional Pro is a $19 one-time license for a local multi-project archive and reusable notes. Licenses are verified only through the Sociobot billing API. The free core keeps working if billing is unavailable.
 
 See [the researched brief](.factory/brief.json), [visual system](.factory/design.md), [privacy notice](privacy/index.html), and [terms](terms/index.html).
 

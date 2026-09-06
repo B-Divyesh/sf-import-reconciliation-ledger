@@ -1,0 +1,14 @@
+{
+  "slug": "import-reconciliation-ledger",
+  "name": "Import Reconciliation Ledger Pro",
+  "price_minor": 1900,
+  "currency": "USD",
+  "price_type": "one_time_price",
+  "return_url": "https://import-reconciliation-ledger.sociobot.in/",
+  "price_evidence": "The registered live checkout returns HTTP 303, and the live product page and terms state $19 one time.",
+  "paid_features": [
+    "Local multi-project archive",
+    "Reusable report notes across projects"
+  ],
+  "license_validation_path": "/api/v1/products/import-reconciliation-ledger/verify"
+}

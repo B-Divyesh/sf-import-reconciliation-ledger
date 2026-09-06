@@ -21,6 +21,20 @@
     "sandbox": "Demo entry point; replace the sample with a one-row CSV containing a quoted comma and quoted line break, then assert all parsed cell content."
   },
   {
+    "id": "mapping-rules",
+    "claim": "Renames or omits columns and applies trim, upper, lower, title, exact-replace, date, and number rules.",
+    "where": "rules screen, README",
+    "test": "npm run test:e2e -- --grep @claim:mapping-rules",
+    "sandbox": "Demo entry point; configure every rule type on a purpose-built row, download the destination CSV, and assert the complete transformed row and omitted column."
+  },
+  {
+    "id": "control-totals",
+    "claim": "Shows source and transformed control totals split across create, match, and skip decisions.",
+    "where": "reconciliation screen, README",
+    "test": "npm run test:e2e -- --grep @claim:control-totals",
+    "sandbox": "Demo sample with Amount selected and one comparison match; assert the displayed before, after, create, match, and skip totals."
+  },
+  {
     "id": "csv-export",
     "claim": "Exports reviewed create and match rows as CSV without a Pro license.",
     "where": "export screen, landing price fact, README",
@@ -28,11 +42,25 @@
     "sandbox": "Demo sample after reconciliation; download destination CSV and assert its header, two retained rows, and omitted duplicate row."
   },
   {
+    "id": "ledger-csv",
+    "claim": "Exports a ledger CSV with one evidence record for every source row.",
+    "where": "export screen, README",
+    "test": "npm run test:e2e -- --grep @claim:ledger-csv",
+    "sandbox": "Demo sample after reconciliation; download the ledger CSV and assert its evidence headers, five records, decisions, reasons, fingerprints, and changed fields."
+  },
+  {
     "id": "review-report",
-    "claim": "Exports a review report with every source row, its decision, and source and output fingerprints.",
+    "claim": "Exports a frozen review report with every source row, its decision, and source and output fingerprints.",
     "where": "export screen, README",
     "test": "npm run test:e2e -- --grep @claim:review-report",
-    "sandbox": "Demo sample after reconciliation; download the report and assert five row records, decision evidence, and fingerprint pairs."
+    "sandbox": "Demo sample after reconciliation; download the report and assert its snapshot label, editable disclosure, five row records, decision evidence, and fingerprint pairs."
+  },
+  {
+    "id": "project-roundtrip",
+    "claim": "Exports and restores a project JSON file with its row decisions and reviewer note.",
+    "where": "source and export screens, privacy page, README",
+    "test": "npm run test:e2e -- --grep @claim:project-roundtrip",
+    "sandbox": "Demo sample; change a decision and note, export project JSON, reset, import that file, and assert the restored project, decision count, and note."
   },
   {
     "id": "offline-reload",
@@ -43,7 +71,7 @@
   },
   {
     "id": "local-only",
-    "claim": "CSV data stays on this device during normal demo use.",
+    "claim": "CSV data stays on this device during normal use.",
     "where": "landing first-screen facts, source screen, privacy page, README",
     "test": "npm run test:e2e -- --grep @claim:local-only",
     "sandbox": "Record every request during the demo reconciliation and export flow; assert every HTTP request is same-origin."
@@ -53,6 +81,13 @@
     "claim": "Optional Pro is listed as a $19 one-time license while the core workspace remains available.",
     "where": "landing first-screen facts, project summary, terms, README",
     "test": "npm run test:e2e -- --grep @claim:pro-price",
-    "sandbox": "Fresh free workspace; assert the displayed one-time price, the product checkout route, and that the sample workspace can be started without a license."
+    "sandbox": "Fresh free workspace; assert the displayed one-time price, external hosted checkout route, and that the sample workspace starts without a license."
+  },
+  {
+    "id": "pro-workspace",
+    "claim": "A valid Pro license adds a local project archive and reviewer notes reusable across projects.",
+    "where": "project summary, export screen, terms, README",
+    "test": "npm run test:e2e -- --grep @claim:pro-workspace",
+    "sandbox": "Fresh real workspace with an isolated cached-valid license fixture; archive six copies, save a note, use it in another project, reload, and reopen an archived project."
   }
 ]

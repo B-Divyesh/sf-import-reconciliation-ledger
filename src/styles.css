@@ -149,6 +149,13 @@ tr.is-duplicate { background: #f1ddd8; }
 .legal p, .legal li { font-family: var(--serif); font-size: 18px; }
 .license-box { margin-top: 18px; padding-top: 14px; border-top: 2px solid var(--ink); }
 .license-box input { margin: 8px 0; }
+.archive-list { display: grid; gap: 4px; max-height: 320px; margin-top: 12px; overflow-y: auto; border-top: 1px solid var(--rule); }
+.archive-list p { margin: 8px 0 0; }
+.archive-list button { width: 100%; justify-content: flex-start; text-align: left; overflow-wrap: anywhere; }
+.saved-notes { margin: 24px 0 0; padding: 18px; border: 2px solid var(--ink); }
+.saved-notes legend { padding-inline: 8px; font: 700 20px/1.1 var(--serif); }
+.saved-notes .field-row { margin-bottom: 0; }
+.saved-note-actions { align-self: end; margin-top: 0; }
 
 @keyframes settle { from { opacity: 0; transform: translateY(8px); } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } }

@@ -2,7 +2,7 @@
 
 ## Direction and rationale
 
-The product is a **monochrome typographic broadsheet**: an evidence desk, not a spreadsheet skin. A wide newspaper masthead, numbered stages, printer's rules, margin annotations, and dense tabular figures make every import feel like an issue assembled for review. The visual metaphor fits the job: source rows arrive as reports, transformations become an editorial record, and the signed export is a frozen edition. Decoration only explains this paper trail.
+The product is a **monochrome typographic broadsheet**: an evidence desk, not a spreadsheet skin. A wide newspaper masthead, numbered stages, printer's rules, margin annotations, and dense tabular figures make every import feel assembled for review. The direction fits the job: source rows, declared transformations, decisions, and the downloaded review snapshot share one clear visual record.
 
 The treatment is deliberately single-mode. A stable paper/ink palette keeps exported HTML reports and the live workspace visually identical, reduces visual ambiguity during review, and preserves print fidelity. The background is always explicitly painted.
 
